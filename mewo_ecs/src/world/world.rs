@@ -11,7 +11,10 @@ use super::resource::{
     ResourceManager,
     ResourceModifyCallback,
 };
-use super::component_manager::ComponentManager;
+use super::component_manager::{
+    ComponentTypeId,
+    ComponentManager,
+};
 use super::component_stamp::ComponentStamp;
 use super::entity_manager::EntityManager;
 
@@ -105,6 +108,14 @@ impl World {
             .unwrap()
             .unstamp(cid);
         self.world_changed = true;
+    }
+
+    pub fn component<C>(&self) -> ComponentTypeId
+        where C: 'static
+    {
+        self.get_component_manager()
+            .get_component_id::<C>()
+            .unwrap()
     }
 
     pub fn is_world_changed(&self) -> bool {

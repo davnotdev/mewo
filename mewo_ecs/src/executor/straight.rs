@@ -1,13 +1,13 @@
 use super::*;
 
 pub struct StraightExecutor {
-    sys: Vec<(Gift, MainSystem, SantaClaus)>,
+    sys: Vec<(Gift, System, SantaClaus)>,
     commands: WorldCommands,
     global_gift: GlobalGift,
 }
 
 impl Executor for StraightExecutor {
-    fn create(world: &World, sys: Vec<(MainSystem, SantaClaus)>) -> Self {
+    fn create(world: &World, sys: Vec<(System, SantaClaus)>) -> Self {
         let mut self_sys = Vec::new();
         let global_gift = GlobalGift::create(world.get_component_manager());
         for (sys, santa) in sys {

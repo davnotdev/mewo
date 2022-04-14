@@ -1,7 +1,6 @@
 mod mask;
 mod storage;
 mod entity_manager;
-mod component_manager;
 
 pub mod gift;
 pub mod error;
@@ -11,6 +10,7 @@ pub mod system;
 pub mod command;
 pub mod resource;
 pub mod component_stamp;
+pub mod component_manager;
 
 pub use gift::{
     Gift,
@@ -27,7 +27,8 @@ pub use entity::{
     EntityWrapper,
 };
 pub use system::{
-    MainSystem,
+    System,
+    SystemData,
     SantaClaus,
 };
 pub use command::WorldCommands;
@@ -35,4 +36,6 @@ pub use resource::{
     ResourceManager,
     ResourceModifyCallback,
 };
+pub use component_stamp::ComponentStamp;
+pub use component_manager::ComponentTypeId;
 

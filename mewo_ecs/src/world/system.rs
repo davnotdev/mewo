@@ -4,7 +4,9 @@ use super::command::WorldCommands;
 use super::gift::GiftInstance;
 use super::world::World;
 
-pub type MainSystem = fn (&mut GiftInstance, &mut WorldCommands) -> ();
+pub type SystemData = (System, SantaClaus);
+
+pub type System = fn (&mut GiftInstance, &mut WorldCommands);
 
 pub struct PickyGiftFilter {
     pub with: Option<ComponentStamp>,

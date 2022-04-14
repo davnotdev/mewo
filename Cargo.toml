@@ -1,5 +1,6 @@
 [workspace]
 members = [
     "mewo_ecs",
+    "mewo_event",
     "mewo_sandbox",
 ]
