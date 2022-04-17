@@ -6,16 +6,16 @@ pub struct PluginBuilder<'world> {
     world: &'world mut World,
     pub deps: Vec<String>,
     pub systems: Vec<(BoxedSystem, SystemData)>,
-    pub commands: WorldCommands,
+    pub commands: WorldCommandsStore,
 }
 
 impl<'world> PluginBuilder<'world> {
     pub fn create(world: &'world mut World) -> PluginBuilder {
         PluginBuilder {
+            commands: WorldCommandsStore::create(),
             world,
             deps: Vec::new(),
             systems: Vec::new(),
-            commands: WorldCommands::create(),
         }
     }
 
@@ -25,8 +25,7 @@ impl<'world> PluginBuilder<'world> {
         let types = Q::get_types();
         self.systems.push((
             Box::new(System(system)),
-            SystemData::from_query_type(&self.world, &types)
-        ));
+            SystemData::from_query_type(&self.world, &types)));
         self
     }
 
@@ -46,8 +45,8 @@ impl<'world> PluginBuilder<'world> {
         self
     }
 
-    pub fn commands(&mut self) -> &mut WorldCommands {
-        &mut self.commands
+    pub fn commands(&mut self) -> WorldCommands {
+        self.commands.modify(self.world)
     }
 }
 

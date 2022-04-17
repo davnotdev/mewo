@@ -24,9 +24,9 @@ pub enum ComponentAccessMode {
     Write,
 }
 
-pub struct SystemArgs<'rmgr, 'cmds> {
+pub struct SystemArgs<'rmgr, 'world, 'cmds> {
     pub rmgr: &'rmgr ResourceManager,
-    pub cmds: &'cmds mut WorldCommands,
+    pub cmds: WorldCommands<'world, 'cmds>,
 }
 
 pub type SystemCallback<Q> = fn (Wish<Q>, SystemArgs);
@@ -128,7 +128,6 @@ impl<'wish, 'global, Q> Wish<'wish, 'global, Q>
         self.wish.read::<C>() 
     }
 }
-
 
 //  *const () points to `data: Vec<C>`
 type UnsafeComponentSlice = *const ();
@@ -383,9 +382,8 @@ impl<'wish, 'global, C> Iterator for GiftInstanceReadIter<'wish, 'global, C> {
 fn test_wish() {
     use crate::{
         Component, 
-        EntityWrapper,
-        EntityModifyCallback,
-        GenericEntityModifyCallback,
+        EntityModifierStore,
+        EntityModifierHandle,
     };
     #[derive(Debug, Clone, PartialEq, Eq)]
     struct SomeWrite {
@@ -398,12 +396,10 @@ fn test_wish() {
         .get_mut_component_manager()
         .register_component_type::<SomeWrite>()
         .unwrap();
-    let callback : Box<dyn GenericEntityModifyCallback> = Box::new(EntityModifyCallback(|mut e: EntityWrapper| {
-        e.insert_component(SomeWrite {
-            val: 2,
-        });
-    }));
-    let our_entity = world.insert_entity(Some(&callback));
+    let mut entity_mod_store = EntityModifierStore::create(EntityModifierHandle::Spawn, &world);
+    let mut entity_mod = entity_mod_store.modify(&world);
+    entity_mod.insert_component(SomeWrite { val: 2 });
+    world.modify_entity(&mut entity_mod_store);
     let mut global_wish = GlobalWish::create(world.get_component_manager());
     global_wish.recreate_slices(world.get_component_manager());
     let sys = |wish: &mut WishInstance| {
@@ -423,7 +419,7 @@ fn test_wish() {
             .get_component_manager()
             .get_boxed_storage_of::<SomeWrite>()
             .get_storage::<SomeWrite>()
-            .get_component_with_entity(our_entity)
+            .get_component_with_entity_of(Entity::from_id(0))
             .unwrap(),
         &SomeWrite { val: 2 + 10 }
     );

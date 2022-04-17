@@ -50,6 +50,7 @@ impl BoxedStorage {
 pub trait GenericStorage : Any {
     fn get_data_ptr(&self) -> *const ();
     fn get_entities(&self) -> &Vec<Entity>;
+    fn insert_component_with_entity(&mut self, entity: Entity, data: Box<dyn Any>) -> Result<()>;
     fn remove_component_with_entity(&mut self, entity: Entity) -> Result<()>;
     fn as_any(&self) -> &dyn Any;
     fn as_any_mut(&mut self) -> &mut dyn Any;
@@ -80,7 +81,7 @@ impl<C> Storage<C>
         }
     }
 
-    pub fn get_component_with_entity(&self, entity: Entity) -> Result<&C> {
+    pub fn get_component_with_entity_of(&self, entity: Entity) -> Result<&C> {
         for (i, e) in self.entities.iter().enumerate() {
             if *e == entity {
                 return Ok(self.data.get(i).unwrap())
@@ -108,6 +109,20 @@ impl<C> GenericStorage for Storage<C>
 
     fn get_entities(&self) -> &Vec<Entity> {
         &self.entities
+    }
+
+    fn insert_component_with_entity(&mut self, entity: Entity, data: Box<dyn Any>) -> Result<()> {
+        if self.entities.contains(&entity) {
+            return Err(ECSError::EntityAlreadyHasComponent(entity, std::any::type_name::<C>()))
+        } else {
+            let data = *(match data.downcast::<C>() {
+                Ok(data) => data,
+                Err(_) => unreachable!("Component Type `{}` does not match", std::any::type_name::<C>()),
+            });
+            self.data.push(data);
+            self.entities.push(entity);
+            Ok(())
+        }
     }
 
     fn remove_component_with_entity(&mut self, entity: Entity) -> Result<()> {
@@ -162,13 +177,13 @@ fn test_storage() {
     assert_eq!(
         boxed_storage
             .get_mut_storage::<SomeComponent>()
-            .get_component_with_entity(entity_a),
+            .get_component_with_entity_of(entity_a),
         Ok(&SomeComponent(69))
     );
     assert_eq!(
         boxed_storage
             .get_mut_storage::<SomeComponent>()
-            .get_component_with_entity(entity_b),
+            .get_component_with_entity_of(entity_b),
         Ok(&SomeComponent(420))
     );
     boxed_storage
@@ -178,13 +193,13 @@ fn test_storage() {
     assert_eq!(
         boxed_storage
             .get_mut_storage::<SomeComponent>()
-            .get_component_with_entity(entity_a),
+            .get_component_with_entity_of(entity_a),
         Err(ECSError::EntityDoesNotHaveComponent(entity_a, std::any::type_name::<SomeComponent>()))
     );
     assert_eq!(
         boxed_storage
             .get_mut_storage::<SomeComponent>()
-            .get_component_with_entity(entity_b),
+            .get_component_with_entity_of(entity_b),
         Ok(&SomeComponent(420))
     );
 }

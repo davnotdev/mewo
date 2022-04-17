@@ -2,7 +2,7 @@ use super::*;
 
 pub struct StraightExecutor {
     sys: Vec<(SystemWish, BoxedSystem, SystemData)>,
-    commands: WorldCommands,
+    commands: WorldCommandsStore,
     global_wish: GlobalWish,
 }
 
@@ -18,7 +18,7 @@ impl Executor for StraightExecutor {
         }
         StraightExecutor {
             sys: self_sys,
-            commands: WorldCommands::create(),
+            commands: WorldCommandsStore::create(),
             global_wish,
         }
     }
@@ -35,33 +35,18 @@ impl Executor for StraightExecutor {
             let inst = WishInstance::create(&wish, &self.global_wish);
             let args = SystemArgs {
                 rmgr: world.get_resource_manager(),
-                cmds: &mut self.commands,
+                cmds: self.commands.modify(&world),
             };
             sys.call(&inst, args);
         }
         world.reset_world_changed();
 
-        let (spawns, removes, modifies) = self.commands.get_entity_commands();
-        for (e, modify) in modifies {
-            world.modify_entity(*e, modify);
+        for mods in self.commands.entity_cmds.iter_mut() {
+            world.modify_entity(mods);
         }
-        for remove_i in 0..removes.get_len() {
-            if removes.get(remove_i).unwrap() {
-                world.remove_entity(Entity::from_id(remove_i as u32));
-            }
-        }
-        for spawn in spawns {
-            world.insert_entity(
-                if let Some(spawn) = spawn {
-                    Some(spawn)
-                } else {
-                    None
-                }
-            );
-        }
-        let modifies = self.commands.get_resource_commands();
+        let modifies = &self.commands.resource_modifies;
         for modify in modifies {
-            world.modify_resources(modify);
+            world.modify_resources(&modify);
         }
         self.commands.flush();
     }
@@ -82,9 +67,7 @@ fn test_straight_executor() {
         Wish, 
         Write,
         Component, 
-        EntityWrapper,
-        EntityModifyCallback,
-        GenericEntityModifyCallback,
+        EntityModifierStore,
     };
     #[derive(Debug, Clone, PartialEq)]
     struct Data(usize, usize, usize);
@@ -121,21 +104,20 @@ fn test_straight_executor() {
     }
     let syswithout = System(syswithout);
     
-    let callback : Box<dyn GenericEntityModifyCallback> = Box::new(EntityModifyCallback(|mut e: EntityWrapper| {
-        e.insert_component::<Data>(Data(0, 0, 0)); 
-    }));
-    world.insert_entity(Some(&callback));
-    let callback : Box<dyn GenericEntityModifyCallback> = Box::new(EntityModifyCallback(move |mut e: EntityWrapper| {
-        e.insert_component::<Data>(Data(0, 0, 0)); 
-        e.insert_component::<With>(With);
-    }));
-    world.insert_entity(Some(&callback));
-
-    let callback : Box<dyn GenericEntityModifyCallback> = Box::new(EntityModifyCallback(|mut e: EntityWrapper| {
-        e.insert_component::<Data>(Data(0, 0, 0)); 
-        e.insert_component::<Without>(Without);
-    }));
-    world.insert_entity(Some(&callback));
+    let mut entity_mod_store = EntityModifierStore::create(EntityModifierHandle::Spawn, &world);
+    let mut entity_mod = entity_mod_store.modify(&world);
+    entity_mod.insert_component(Data(0, 0, 0));
+    world.modify_entity(&mut entity_mod_store);
+    let mut entity_mod_store = EntityModifierStore::create(EntityModifierHandle::Spawn, &world);
+    let mut entity_mod = entity_mod_store.modify(&world);
+    entity_mod.insert_component(Data(0, 0, 0));
+    entity_mod.insert_component(With);
+    world.modify_entity(&mut entity_mod_store);
+    let mut entity_mod_store = EntityModifierStore::create(EntityModifierHandle::Spawn, &world);
+    let mut entity_mod = entity_mod_store.modify(&world);
+    entity_mod.insert_component(Data(0, 0, 0));
+    entity_mod.insert_component(Without);
+    world.modify_entity(&mut entity_mod_store);
 
     let sysall_info = SystemData::from_query_type(&world, &sysall.get_wish_info());
     let syswith_info = SystemData::from_query_type(&world, &syswith.get_wish_info());

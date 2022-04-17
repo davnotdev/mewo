@@ -9,6 +9,8 @@ pub use crate::world::{
     GlobalWish,
     BoxedSystem,
     WorldCommands,
+    WorldCommandsStore,
+    EntityModifierHandle,
 };
 
 pub use straight::StraightExecutor;

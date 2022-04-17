@@ -28,7 +28,7 @@ impl<E> App<E>
 
 pub struct AppBuilder {
     world: World,
-    commands: WorldCommands,
+    commands: WorldCommandsStore,
     plugins: Vec<(String, Vec<(BoxedSystem, SystemData)>)>,
     plugins_start: Vec<(String, Vec<(BoxedSystem, SystemData)>)>,
     plugins_end: Vec<(String, Vec<(BoxedSystem, SystemData)>)>,
@@ -37,15 +37,15 @@ pub struct AppBuilder {
 impl AppBuilder { 
     pub fn create() -> Self {
         AppBuilder {
+            commands: WorldCommandsStore::create(),
             world: World::create(),
-            commands: WorldCommands::create(),
             plugins: Vec::new(),
             plugins_start: Vec::new(),
             plugins_end: Vec::new(),
         }
     }
 
-    fn plugin_build(world: &mut World, callback: PluginBuildCallback) -> (Vec<String>, Vec<(BoxedSystem, SystemData)>, WorldCommands) {
+    fn plugin_build(world: &mut World, callback: PluginBuildCallback) -> (Vec<String>, Vec<(BoxedSystem, SystemData)>, WorldCommandsStore) {
         let mut builder = PluginBuilder::create(world);
         (callback)(&mut builder);
         (builder.deps, builder.systems, builder.commands)

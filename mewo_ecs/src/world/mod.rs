@@ -18,13 +18,14 @@ pub use wish::{
 };
 pub use world::{
     World,
-    EntityModifyCallback,
-    BoxedEntityModifyCallback,
-    GenericEntityModifyCallback,
 };
 pub use entity::{
     Entity, 
-    EntityWrapper,
+    EntityModifier,
+    EntityModifierStore,
+    EntityModifierHandle,
+    EntityComponentModify,
+    EntityComponentModifyType,
 };
 pub use system::{
     Wish,
@@ -40,7 +41,10 @@ pub use system::{
     GiftInstanceReadIter,
     GiftInstanceWriteIter,
 };
-pub use command::WorldCommands;
+pub use command::{
+    WorldCommands,
+    WorldCommandsStore,
+};
 pub use resource::{
     Resource,
     ResourceManager,

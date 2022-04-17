@@ -1,11 +1,14 @@
 use sparseset::SparseSet;
+use std::any::Any;
 use crate::error::{
     Result, 
     ECSError,
 };
 use super::entity::{
     Entity,
-    EntityWrapper
+    EntityModifierStore,
+    EntityModifierHandle,
+    EntityComponentModifyType,
 };
 use super::resource::{
     ResourceManager,
@@ -18,20 +21,6 @@ use super::component::{
 };
 use super::component_stamp::ComponentStamp;
 use super::entity_manager::EntityManager;
-
-pub struct EntityModifyCallback<F: Fn(EntityWrapper) -> ()>(pub F);
-pub trait GenericEntityModifyCallback {
-    fn call(&self, entity: EntityWrapper);
-}
-pub type BoxedEntityModifyCallback = Box<dyn GenericEntityModifyCallback>;
-
-impl<F> GenericEntityModifyCallback for EntityModifyCallback<F> 
-    where F: Fn(EntityWrapper) -> ()
-{
-    fn call(&self, entity: EntityWrapper) {
-        (self.0)(entity)
-    }
-}
 
 pub struct World {
     entity_mgr: EntityManager,
@@ -58,17 +47,30 @@ impl World {
         callback.call(&mut self.resource_mgr);
     }
 
-    pub fn modify_entity(&mut self, entity: Entity, callback: &BoxedEntityModifyCallback) {
-        let wrapper = EntityWrapper::create(entity, self);
-        callback.call(wrapper);
+    pub fn modify_entity(&mut self, entity_mod: &mut EntityModifierStore) {
+        let entity = if let EntityModifierHandle::Modify(e) = entity_mod.entity {
+            e
+        } else {
+            self.insert_entity()
+        };
+        for component_mod in entity_mod.components.iter_mut() {
+            let cid = component_mod.cid;
+            match &mut component_mod.modify {
+                EntityComponentModifyType::Insert(insert) => {
+                    let data = std::mem::replace(insert, None);
+                    self.insert_component_with_entity(entity, data.unwrap(), cid);
+                }
+                EntityComponentModifyType::Remove => {
+                    self.remove_component_with_entity(entity, cid);
+                },
+            };
+        }
+        self.world_changed = true;
     }
 
-    pub fn insert_entity(&mut self, callback: Option<&BoxedEntityModifyCallback>) -> Entity {
+    pub fn insert_entity(&mut self) -> Entity {
         let entity = self.entity_mgr.register_entity();
         self.entity_dep_info.insert(entity.as_index(), ComponentStamp::create(&self));
-        if let Some(callback) = callback {
-            self.modify_entity(entity, &callback);
-        }
         self.world_changed = true;
         entity
     }
@@ -89,16 +91,11 @@ impl World {
         self.world_changed = true;
     }
 
-    pub fn insert_component_with_entity<C>(&mut self, entity: Entity, obj: C) 
-        where C: 'static + Component
-    {
+    pub fn insert_component_with_entity(&mut self, entity: Entity, obj: Box<dyn Any>, cid: ComponentTypeId) {
         self.get_mut_component_manager()
-            .get_mut_boxed_storage_of::<C>()
-            .get_mut_storage::<C>()
-            .insert_component_with_entity(obj, entity)
-            .unwrap();
-        let cid = self.get_component_manager()
-            .get_component_id_of::<C>()
+            .get_mut_boxed_storage(cid)
+            .get_mut_untyped_storage()
+            .insert_component_with_entity(entity, obj)
             .unwrap();
         self.entity_dep_info.get_mut(entity.as_index())
             .unwrap()
@@ -106,16 +103,11 @@ impl World {
         self.world_changed = true;
     }
 
-    pub fn remove_component_with_entity<C>(&mut self, entity: Entity) 
-        where C: 'static + Component
-    {
+    pub fn remove_component_with_entity(&mut self, entity: Entity, cid: ComponentTypeId) {
         self.get_mut_component_manager()
-            .get_mut_boxed_storage_of::<C>()
+            .get_mut_boxed_storage(cid)
             .get_mut_untyped_storage()
             .remove_component_with_entity(entity)
-            .unwrap();
-        let cid = self.get_component_manager()
-            .get_component_id_of::<C>()
             .unwrap();
         self.entity_dep_info.get_mut(entity.as_index())
             .unwrap()
@@ -151,7 +143,7 @@ impl World {
         self.get_component_manager()
             .get_boxed_storage_of::<C>()
             .get_storage::<C>()
-            .get_component_with_entity(entity)
+            .get_component_with_entity_of(entity)
             .unwrap()
     }
 
