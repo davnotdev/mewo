@@ -1,45 +1,49 @@
 use super::*;
 
 pub struct StraightExecutor {
-    sys: Vec<(Gift, System, SantaClaus)>,
+    sys: Vec<(SystemWish, BoxedSystem, SystemData)>,
     commands: WorldCommands,
-    global_gift: GlobalGift,
+    global_wish: GlobalWish,
 }
 
 impl Executor for StraightExecutor {
-    fn create(world: &World, sys: Vec<(System, SantaClaus)>) -> Self {
+    fn create(world: &World, sys: Vec<(BoxedSystem, SystemData)>) -> Self {
         let mut self_sys = Vec::new();
-        let global_gift = GlobalGift::create(world.get_component_manager());
-        for (sys, santa) in sys {
+        let global_wish = GlobalWish::create(world.get_component_manager());
+        for (sys, sys_data) in sys {
             self_sys.push((
-                Gift::create(world, &global_gift, &santa),
-                sys, santa, 
+                SystemWish::create(world, &global_wish, &sys_data),
+                sys, sys_data, 
             ));
         }
         StraightExecutor {
             sys: self_sys,
             commands: WorldCommands::create(),
-            global_gift,
+            global_wish,
         }
     }
 
     fn execute(&mut self, world: &mut World) {
         let world_changed = world.is_world_changed();
         if world_changed {
-            self.global_gift.recreate_slices(world.get_component_manager())
+            self.global_wish.recreate_slices(world.get_component_manager())
         }
-        for (gift, sys, santa) in self.sys.iter_mut() {
+        for (wish, sys, sys_data) in self.sys.iter_mut() {
             if world_changed {
-                gift.update_index_buf(world, santa);
+                wish.update_index_buf(world, sys_data);
             }
-            let mut inst = GiftInstance::create(&gift, &self.global_gift);
-            (sys)(&mut inst, &mut self.commands);
+            let inst = WishInstance::create(&wish, &self.global_wish);
+            let args = SystemArgs {
+                rmgr: world.get_resource_manager(),
+                cmds: &mut self.commands,
+            };
+            sys.call(&inst, args);
         }
         world.reset_world_changed();
 
         let (spawns, removes, modifies) = self.commands.get_entity_commands();
         for (e, modify) in modifies {
-            world.modify_entity(*e, *modify);
+            world.modify_entity(*e, modify);
         }
         for remove_i in 0..removes.get_len() {
             if removes.get(remove_i).unwrap() {
@@ -47,11 +51,17 @@ impl Executor for StraightExecutor {
             }
         }
         for spawn in spawns {
-            world.insert_entity(*spawn);
+            world.insert_entity(
+                if let Some(spawn) = spawn {
+                    Some(spawn)
+                } else {
+                    None
+                }
+            );
         }
         let modifies = self.commands.get_resource_commands();
         for modify in modifies {
-            world.modify_resources(*modify);
+            world.modify_resources(modify);
         }
         self.commands.flush();
     }
@@ -68,12 +78,23 @@ impl Executor for StraightExecutor {
 //  e2: (1, 0, 0)
 #[test]
 fn test_straight_executor() {
+    use crate::{ 
+        Wish, 
+        Write,
+        Component, 
+        EntityWrapper,
+        EntityModifyCallback,
+        GenericEntityModifyCallback,
+    };
     #[derive(Debug, Clone, PartialEq)]
     struct Data(usize, usize, usize);
+    impl Component for Data {}
     #[derive(Debug, Clone, PartialEq)]
     struct With;
+    impl Component for With {}
     #[derive(Debug, Clone, PartialEq)]
     struct Without;
+    impl Component for Without {}
 
     let mut world = World::create();
     let component_manager = world.get_mut_component_manager();
@@ -81,47 +102,48 @@ fn test_straight_executor() {
     component_manager.register_component_type::<With>().unwrap();
     component_manager.register_component_type::<Without>().unwrap();
     
-    let sysall = |gift: &mut GiftInstance, _cmd: &mut WorldCommands| {
-        for (data, _e) in gift.write::<Data>() {
+    fn sysall(q: Wish<Write<Data>>, _args: SystemArgs) {
+        for (data, _e) in q.write::<Data>() {
             data.0 += 1;
         }
-    };
-    let sysall_santa = SantaClaus::wishlist(&world)
-        .writes(vec![0], None, None)
-        .finish();
-    let syswith = |gift: &mut GiftInstance, _cmd: &mut WorldCommands| {
-        for (data, _e) in gift.write::<Data>() {
+    }
+    let sysall = System(sysall);
+    fn syswith(q: Wish<Write<Data, With, ()>>, _args: SystemArgs) {
+        for (data, _e) in q.write::<Data>() {
             data.1 += 1;
         }
-    };
-    let syswith_santa = SantaClaus::wishlist(&world)
-        .writes(vec![0], Some(vec![1]), None)
-        .finish();
-    let syswithout = |gift: &mut GiftInstance, _cmd: &mut WorldCommands| {
-        for (data, _e) in gift.write::<Data>() {
+    }
+    let syswith = System(syswith);
+    fn syswithout (q: Wish<Write<Data, (), Without>>, _args: SystemArgs) {
+        for (data, _e) in q.write::<Data>() {
             data.2 += 1;
         }
-    };
-    let syswithout_santa = SantaClaus::wishlist(&world)
-        .writes(vec![0], None, Some(vec![2]))
-        .finish();
-
-    world.insert_entity(Some(|mut e| {
+    }
+    let syswithout = System(syswithout);
+    
+    let callback : Box<dyn GenericEntityModifyCallback> = Box::new(EntityModifyCallback(|mut e: EntityWrapper| {
         e.insert_component::<Data>(Data(0, 0, 0)); 
     }));
-    world.insert_entity(Some(|mut e| {
+    world.insert_entity(Some(&callback));
+    let callback : Box<dyn GenericEntityModifyCallback> = Box::new(EntityModifyCallback(move |mut e: EntityWrapper| {
         e.insert_component::<Data>(Data(0, 0, 0)); 
         e.insert_component::<With>(With);
     }));
-    world.insert_entity(Some(|mut e| {
+    world.insert_entity(Some(&callback));
+
+    let callback : Box<dyn GenericEntityModifyCallback> = Box::new(EntityModifyCallback(|mut e: EntityWrapper| {
         e.insert_component::<Data>(Data(0, 0, 0)); 
         e.insert_component::<Without>(Without);
     }));
+    world.insert_entity(Some(&callback));
 
+    let sysall_info = SystemData::from_query_type(&world, &sysall.get_wish_info());
+    let syswith_info = SystemData::from_query_type(&world, &syswith.get_wish_info());
+    let syswithout_info = SystemData::from_query_type(&world, &syswithout.get_wish_info());
     let mut exec = StraightExecutor::create(&world, vec![
-        (sysall, sysall_santa),
-        (syswith, syswith_santa),
-        (syswithout, syswithout_santa),
+        (Box::new(sysall), sysall_info),
+        (Box::new(syswith), syswith_info),
+        (Box::new(syswithout), syswithout_info),
     ]);
     exec.execute(&mut world);
 

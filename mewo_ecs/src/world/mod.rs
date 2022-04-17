@@ -2,40 +2,55 @@ mod mask;
 mod storage;
 mod entity_manager;
 
-pub mod gift;
-pub mod error;
+pub mod wish;
 pub mod world;
 pub mod entity;
 pub mod system;
 pub mod command;
 pub mod resource;
+pub mod component;
 pub mod component_stamp;
-pub mod component_manager;
 
-pub use gift::{
-    Gift,
-    GlobalGift,
-    GiftInstance,
+pub use wish::{
+    Read,
+    Write,
+    WishArg,
 };
-pub use error::ECSError;
 pub use world::{
     World,
     EntityModifyCallback,
+    BoxedEntityModifyCallback,
+    GenericEntityModifyCallback,
 };
 pub use entity::{
     Entity, 
     EntityWrapper,
 };
 pub use system::{
+    Wish,
     System,
+    GlobalWish,
+    SystemWish,
+    SystemArgs,
     SystemData,
-    SantaClaus,
+    BoxedSystem,
+    SystemFilter,
+    WishInstance,
+    SystemCallback,
+    GiftInstanceReadIter,
+    GiftInstanceWriteIter,
 };
 pub use command::WorldCommands;
 pub use resource::{
+    Resource,
     ResourceManager,
     ResourceModifyCallback,
+    BoxedResourceModifyCallback,
+    GenericResourceModifyCallback,
+};
+pub use component::{
+    Component,
+    ComponentTypeId,
 };
 pub use component_stamp::ComponentStamp;
-pub use component_manager::ComponentTypeId;
 

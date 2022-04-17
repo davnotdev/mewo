@@ -1,4 +1,4 @@
-use super::error::{ Result, ECSError };
+use crate::error::{ Result, ECSError };
 use super::entity::{ Id, Entity };
 use super::mask::BoolMask;
 

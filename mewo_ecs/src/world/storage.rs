@@ -1,6 +1,6 @@
 use std::any::Any;
 use super::entity::Entity;
-use super::error::{
+use crate::error::{
     Result,
     ECSError,
 };

@@ -1,6 +1,16 @@
-use super::resource::ResourceModifyCallback;
-use super::entity::Entity;
-use super::world::EntityModifyCallback;
+use super::entity::{
+    Entity,
+    EntityWrapper
+};
+use super::world::{
+    EntityModifyCallback,
+    BoxedEntityModifyCallback,
+};
+use super::resource::{
+    ResourceManager,
+    ResourceModifyCallback,
+    BoxedResourceModifyCallback,
+};
 use super::mask::BoolMask;
 
 const COMMAND_ENTITY_SPAWN_RESERVE_CONST: usize = 32;
@@ -9,10 +19,10 @@ const COMMAND_ENTITY_MODIFY_RESERVE_CONST: usize = 16;
 const COMMAND_RESOURCE_MODIFY_RESERVE_CONST: usize = 16;
 
 pub struct WorldCommands {
-    entity_spawns: Vec<Option<EntityModifyCallback>>,
+    entity_spawns: Vec<Option<BoxedEntityModifyCallback>>,
     entity_removes: BoolMask,
-    entity_modifies: Vec<(Entity, EntityModifyCallback)>,
-    resource_modifies: Vec<ResourceModifyCallback>,
+    entity_modifies: Vec<(Entity, BoxedEntityModifyCallback)>,
+    resource_modifies: Vec<BoxedResourceModifyCallback>,
 }
 
 impl WorldCommands {
@@ -41,18 +51,23 @@ impl WorldCommands {
         } 
     }
 
-    pub fn modify_entity(&mut self, entity: Entity, callback: EntityModifyCallback) -> &mut Self {
-        self.entity_modifies.push((entity, callback));
+    pub fn modify_entity<F>(&mut self, entity: Entity, callback: F) -> &mut Self 
+        where F: 'static + Fn(EntityWrapper) -> ()
+    {
+        self.entity_modifies.push((entity, Box::new(EntityModifyCallback(callback))));
         self
     }
 
-    pub fn modify_resources(&mut self, callback: ResourceModifyCallback) -> &mut Self {
-        self.resource_modifies.push(callback);
-        self
-    }
-
-    pub fn spawn_entity(&mut self, callback: Option<EntityModifyCallback>) -> &mut Self {
-        self.entity_spawns.push(callback);
+    pub fn spawn_entity<F>(&mut self, callback: Option<F>) -> &mut Self 
+        where F: 'static + Fn(EntityWrapper) -> ()
+    {
+        self.entity_spawns.push(
+            if let Some(callback) = callback {
+                Some(Box::new(EntityModifyCallback(callback)))
+            } else {
+                None
+            }
+        );
         self
     }
 
@@ -67,11 +82,18 @@ impl WorldCommands {
         self
     }
 
-    pub fn get_entity_commands(&self) -> (&Vec<Option<EntityModifyCallback>>, &BoolMask, &Vec<(Entity, EntityModifyCallback)>) {
+    pub fn modify_resources<F>(&mut self, callback: F) -> &mut Self 
+        where F: 'static + Fn(&mut ResourceManager) -> ()
+    {
+        self.resource_modifies.push(Box::new(ResourceModifyCallback(callback)));
+        self
+    }
+
+    pub fn get_entity_commands(&self) -> (&Vec<Option<BoxedEntityModifyCallback>>, &BoolMask, &Vec<(Entity, BoxedEntityModifyCallback)>) {
         (&self.entity_spawns, &self.entity_removes, &self.entity_modifies)
     }
 
-    pub fn get_resource_commands(&self) -> &Vec<ResourceModifyCallback> {
+    pub fn get_resource_commands(&self) -> &Vec<BoxedResourceModifyCallback> {
         &self.resource_modifies
     }
 
@@ -80,6 +102,18 @@ impl WorldCommands {
         self.entity_removes.flush();
         self.entity_modifies.clear();
         self.resource_modifies.clear();
+    }
+
+    pub fn merge(&mut self, mut other: Self) {
+        self.entity_spawns.append(&mut other.entity_spawns);
+        self.entity_modifies.append(&mut other.entity_modifies);
+        self.resource_modifies.append(&mut other.resource_modifies);
+        self.entity_removes.extend(self.entity_removes.get_len());
+        for i in 0..other.entity_removes.get_len() {
+            if other.entity_removes.get(i).unwrap() {
+                self.entity_removes.set(i, true).unwrap();
+            }
+        }
     }
 
     pub fn is_empty(&self) -> bool {

@@ -1,4 +1,4 @@
-use super::entity::Entity;
+use crate::Entity;
 
 #[derive(Debug, PartialEq)]
 pub enum ECSError {
@@ -7,6 +7,8 @@ pub enum ECSError {
     EntityAlreadyHasComponent(Entity, &'static str),
     EntityDoesNotHaveComponent(Entity, &'static str),
     EntityDoesNotExist(Entity),
+    PluginDependencyNotFound(String),
+    
 }
 
 pub type Result<T> = std::result::Result<T, ECSError>;

@@ -1,9 +1,11 @@
 [package]
-name = "mewo_event"
+name = "mewo_term"
 version = "0.1.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+rustbox = "0.11.0"
 mewo_ecs = { path = "../mewo_ecs/" }
+mewo_common = { path = "../mewo_common/" }

@@ -1,3 +1,4 @@
+use super::component::Component;
 use super::world::World; 
 
 pub type Id = u32;
@@ -14,8 +15,7 @@ impl Entity {
 
     pub fn as_index(&self) -> usize {
         self.id as usize
-    }
-}
+    } }
 
 pub struct EntityWrapper<'world> {
     entity: Entity,
@@ -30,25 +30,25 @@ impl<'world> EntityWrapper<'world> {
     }
 
     pub fn insert_component<C>(&mut self, obj: C) 
-        where C: 'static + Clone
+        where C: 'static + Component
     {
         self.world.insert_component_with_entity(self.entity, obj);
     }
 
     pub fn remove_component<C>(&mut self) 
-        where C: 'static + Clone
+        where C: 'static + Component
     {
         self.world.remove_component_with_entity::<C>(self.entity);
     }
 
     pub fn get_component<C>(&self) -> &C
-        where C: 'static
+        where C: 'static + Component
     {
         self.world.get_component_with_entity::<C>(self.entity)
     }
 
     pub fn get_mut_component<C>(&mut self) -> &mut C
-        where C: 'static
+        where C: 'static + Component
     {
         self.world.get_mut_component_with_entity::<C>(self.entity)
     }

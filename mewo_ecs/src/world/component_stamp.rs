@@ -1,10 +1,9 @@
-use super::component_manager::ComponentTypeId;
+use super::component::ComponentTypeId;
 use super::world::World;
 use super::mask::BoolMask;
 
 pub struct ComponentStamp {
     mask: BoolMask,
-    len: usize,
 }
 
 impl ComponentStamp {
@@ -16,13 +15,11 @@ impl ComponentStamp {
         mask.extend(len-mask.get_len());
         ComponentStamp { 
             mask, 
-            len,
         }
     }
 
     pub fn from(mask: BoolMask) -> ComponentStamp {
         ComponentStamp { 
-            len: mask.get_len(), 
             mask,
         }
     }

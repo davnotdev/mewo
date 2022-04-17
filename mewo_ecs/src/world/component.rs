@@ -1,8 +1,11 @@
+use crate::error::{ Result, ECSError };
 use std::any::TypeId;
 use std::collections::HashMap;
 use sparseset::SparseSet;
-use super::error::{ Result, ECSError };
 use super::storage::BoxedStorage;
+
+pub trait Component {
+}
 
 pub type ComponentTypeId = usize;
 const COMPONENT_MANAGER_STORAGE_RESERVE_COUNT: usize = 32;
@@ -21,7 +24,7 @@ impl ComponentManager {
     } 
 
     pub fn register_component_type<C>(&mut self) -> Result<ComponentTypeId> 
-        where C: 'static + Clone
+        where C: 'static + Component
     {
         let t = TypeId::of::<C>();
         if self.component_types.contains_key(&t) {
@@ -33,7 +36,16 @@ impl ComponentManager {
         Ok(id)
     }
 
-    pub fn get_component_id<C: 'static>(&self) -> Result<ComponentTypeId> {
+    pub fn get_component_id(&self, ty: TypeId) -> Result<ComponentTypeId> {
+        match self.component_types.get(&ty) {
+            Some(id) => Ok(*id),
+            None => Err(ECSError::ComponentTypeDoesNotExist),
+        }
+    }
+
+    pub fn get_component_id_of<C>(&self) -> Result<ComponentTypeId> 
+        where C: 'static + Component
+    {
         match self.component_types.get(&TypeId::of::<C>()) {
             Some(id) => Ok(*id),
             None => Err(ECSError::ComponentTypeDoesNotExist),
@@ -49,14 +61,14 @@ impl ComponentManager {
     }
 
     pub fn get_boxed_storage_of<C>(&self) -> &BoxedStorage 
-        where C: 'static
+        where C: 'static + Component
     {
         self.storages.get(self.component_types[&TypeId::of::<C>()])
             .unwrap()
     }
 
     pub fn get_mut_boxed_storage_of<C>(&mut self) -> &mut BoxedStorage 
-        where C: 'static
+        where C: 'static + Component
     {
         self.storages.get_mut(self.component_types[&TypeId::of::<C>()])
             .unwrap()

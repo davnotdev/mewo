@@ -1,4 +1,5 @@
 use crate::*;
+use error::Result;
 
 pub struct App<E> 
     where E: Executor
@@ -28,12 +29,13 @@ impl<E> App<E>
 pub struct AppBuilder {
     world: World,
     commands: WorldCommands,
-    plugins: Vec<(String, Vec<SystemData>)>,
-    plugins_start: Vec<(String, Vec<SystemData>)>,
-    plugins_end: Vec<(String, Vec<SystemData>)>,
+    plugins: Vec<(String, Vec<(BoxedSystem, SystemData)>)>,
+    plugins_start: Vec<(String, Vec<(BoxedSystem, SystemData)>)>,
+    plugins_end: Vec<(String, Vec<(BoxedSystem, SystemData)>)>,
 }
 
-impl AppBuilder { pub fn create() -> Self {
+impl AppBuilder { 
+    pub fn create() -> Self {
         AppBuilder {
             world: World::create(),
             commands: WorldCommands::create(),
@@ -43,24 +45,45 @@ impl AppBuilder { pub fn create() -> Self {
         }
     }
 
-    fn plugin_build(world: &mut World, callback: PluginBuildCallback) -> Vec<SystemData> {
+    fn plugin_build(world: &mut World, callback: PluginBuildCallback) -> (Vec<String>, Vec<(BoxedSystem, SystemData)>, WorldCommands) {
         let mut builder = PluginBuilder::create(world);
         (callback)(&mut builder);
-        builder.consume_systems()
+        (builder.deps, builder.systems, builder.commands)
+    }
+
+    fn check_deps(&self, deps: Vec<String>) -> Result<()> {
+        for dep in deps {
+            for (name, _plugin) in &self.plugins {
+                if dep == *name {
+                    break;
+                }
+            }
+            return Err(ECSError::PluginDependencyNotFound(dep))
+        }
+        Ok(())
     }
 
     pub fn plugin(mut self, name: &str, callback: PluginBuildCallback) -> Self {
-        self.plugins.push((String::from(name), Self::plugin_build(&mut self.world, callback)));
+        let (deps, sys, cmds) = Self::plugin_build(&mut self.world, callback);
+        self.check_deps(deps).unwrap();
+        self.commands.merge(cmds);
+        self.plugins.push((String::from(name), sys));
         self
     }
 
     pub fn plugin_start(mut self, name: &str, callback: PluginBuildCallback) -> Self {
-        self.plugins_start.push((String::from(name), Self::plugin_build(&mut self.world, callback)));
+        let (deps, sys, cmds) = Self::plugin_build(&mut self.world, callback);
+        self.check_deps(deps).unwrap();
+        self.commands.merge(cmds);
+        self.plugins_start.push((String::from(name), sys));
         self
     }
 
     pub fn plugin_end(mut self, name: &str, callback: PluginBuildCallback) -> Self {
-        self.plugins_end.push((String::from(name), Self::plugin_build(&mut self.world, callback)));
+        let (deps, sys, cmds) = Self::plugin_build(&mut self.world, callback);
+        self.check_deps(deps).unwrap();
+        self.commands.merge(cmds);
+        self.plugins_end.push((String::from(name), sys));
         self
     }
 

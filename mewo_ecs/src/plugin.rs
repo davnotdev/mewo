@@ -4,24 +4,34 @@ pub type PluginBuildCallback = fn(&mut PluginBuilder);
 
 pub struct PluginBuilder<'world> {
     world: &'world mut World,
-    systems: Vec<SystemData>,
+    pub deps: Vec<String>,
+    pub systems: Vec<(BoxedSystem, SystemData)>,
+    pub commands: WorldCommands,
 }
 
 impl<'world> PluginBuilder<'world> {
     pub fn create(world: &'world mut World) -> PluginBuilder {
         PluginBuilder {
             world,
+            deps: Vec::new(),
             systems: Vec::new(),
+            commands: WorldCommands::create(),
         }
     }
 
-    pub fn sys(&mut self, system: fn(&World) -> SystemData) -> &mut Self {
-        self.systems.push((system)(&self.world));
+    pub fn sys<Q>(&mut self, system: SystemCallback<Q>) -> &mut Self 
+        where Q: 'static + WishArg
+    {
+        let types = Q::get_types();
+        self.systems.push((
+            Box::new(System(system)),
+            SystemData::from_query_type(&self.world, &types)
+        ));
         self
     }
 
     pub fn component<C>(&mut self) -> &mut Self
-        where C: 'static + Clone
+        where C: 'static + Component
     {
         self
             .world
@@ -31,15 +41,13 @@ impl<'world> PluginBuilder<'world> {
         self
     }
 
-    pub fn dep<C>(&mut self) -> &mut Self 
-        where C: 'static
-    {
-        self.world.get_component_manager().get_component_id::<C>().unwrap();
+    pub fn dep(&mut self, plugin_name: &str) -> &mut Self {
+        self.deps.push(String::from(plugin_name));
         self
     }
 
-    pub fn consume_systems(self) -> Vec<SystemData> {
-        self.systems 
+    pub fn commands(&mut self) -> &mut WorldCommands {
+        &mut self.commands
     }
 }
 
