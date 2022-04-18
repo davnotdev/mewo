@@ -159,6 +159,7 @@ impl GlobalWish {
             let cty = *cty;
             let storage = component_mgr
                 .get_boxed_storage(cty)
+                .unwrap()
                 .get_untyped_storage();
             self.data.insert(cty, (storage.get_data_ptr(), storage.get_entities() as *const Vec<Entity>));
         }
@@ -194,6 +195,7 @@ impl SystemWish {
                         for (i, e) in world
                             .get_component_manager()
                             .get_boxed_storage(*id)
+                            .unwrap()
                             .get_untyped_storage()
                             .get_entities()
                             .iter()
@@ -210,6 +212,7 @@ impl SystemWish {
                         for (i, e) in world
                             .get_component_manager()
                             .get_boxed_storage(*id)
+                            .unwrap()
                             .get_untyped_storage()
                             .get_entities()
                             .iter()
@@ -399,7 +402,7 @@ fn test_wish() {
     let mut entity_mod_store = EntityModifierStore::create(EntityModifierHandle::Spawn, &world);
     let mut entity_mod = entity_mod_store.modify(&world);
     entity_mod.insert_component(SomeWrite { val: 2 });
-    world.modify_entity(&mut entity_mod_store);
+    world.modify_entity(&mut entity_mod_store).unwrap();
     let mut global_wish = GlobalWish::create(world.get_component_manager());
     global_wish.recreate_slices(world.get_component_manager());
     let sys = |wish: &mut WishInstance| {
@@ -418,7 +421,9 @@ fn test_wish() {
         world
             .get_component_manager()
             .get_boxed_storage_of::<SomeWrite>()
+            .unwrap()
             .get_storage::<SomeWrite>()
+            .unwrap()
             .get_component_with_entity_of(Entity::from_id(0))
             .unwrap(),
         &SomeWrite { val: 2 + 10 }

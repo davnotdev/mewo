@@ -16,9 +16,10 @@ impl Time {
     }
 }
 
-fn update_time(_w: Wish<()>, args: SystemArgs) {
+fn update_time(_w: Wish<()>, mut args: SystemArgs) {
     args.cmds.modify_resources(|rmgr| {
         rmgr.get_mut::<Time>()
+            .unwrap()
             .last_instant = Instant::now();
     });
 }
@@ -31,7 +32,7 @@ impl TimePlugin {
     }
 
     pub fn plugin(pb: &mut PluginBuilder) {
-        let cmds = pb.commands();
+        let mut cmds = pb.commands();
         cmds.modify_resources(|rmgr| {
             rmgr.insert::<Time>(Time {
                 last_instant: Instant::now()

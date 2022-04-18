@@ -66,7 +66,7 @@ pub struct EntityModifier<'world, 'store> {
 }
 
 impl<'world, 'store> EntityModifier<'world, 'store> {
-    pub fn insert_component<C>(&mut self, obj: C) 
+    pub fn insert_component<C>(&mut self, obj: C) -> &mut Self
         where C: 'static + Component
     {
         let id = self.world
@@ -76,10 +76,11 @@ impl<'world, 'store> EntityModifier<'world, 'store> {
         self.components.push(EntityComponentModify {
             cid: id,
             modify: EntityComponentModifyType::Insert(Some(Box::new(obj))),
-        })
+        });
+        self
     }
 
-    pub fn remove_component<C>(&mut self) 
+    pub fn remove_component<C>(&mut self) -> &mut Self
         where C: 'static + Component
     {
         let id = self.world
@@ -89,7 +90,8 @@ impl<'world, 'store> EntityModifier<'world, 'store> {
         self.components.push(EntityComponentModify {
             cid: id,
             modify: EntityComponentModifyType::Remove,
-        })
+        });
+        self
     }
 }
 

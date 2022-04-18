@@ -1,9 +1,10 @@
 use std::any::Any;
-use super::entity::Entity;
 use crate::error::{
     Result,
     ECSError,
+    ComponentErrorIdentifier,
 };
+use super::entity::Entity;
 
 pub struct BoxedStorage {
     storage: Box<dyn GenericStorage>,
@@ -18,22 +19,28 @@ impl BoxedStorage {
         }
     }
 
-    pub fn get_storage<C>(&self) -> &Storage<C> 
+    pub fn get_storage<C>(&self) -> Result<&Storage<C>>
         where C: 'static
     {
-        self.storage
+        if let Some(storage) = self.storage
             .as_any()
-            .downcast_ref::<Storage<C>>()
-            .unwrap()
+            .downcast_ref::<Storage<C>>() {
+                Ok(storage)
+            } else {
+                Err(ECSError::ComponentTypeDoesNotExist(ComponentErrorIdentifier::Name(std::any::type_name::<C>())))
+            }
     }
 
-    pub fn get_mut_storage<C>(&mut self) -> &mut Storage<C> 
+    pub fn get_mut_storage<C>(&mut self) -> Result<&mut Storage<C>>
         where C: 'static
     {
-        self.storage
+        if let Some(storage) = self.storage
             .as_any_mut()
-            .downcast_mut::<Storage<C>>()
-            .unwrap()
+            .downcast_mut::<Storage<C>>() {
+                Ok(storage)
+            } else {
+                Err(ECSError::ComponentTypeDoesNotExist(ComponentErrorIdentifier::Name(std::any::type_name::<C>())))
+            }
     }
 
     pub fn get_untyped_storage(&self) -> &dyn GenericStorage {
@@ -73,7 +80,7 @@ impl<C> Storage<C>
 
     pub fn insert_component_with_entity(&mut self, data: C, entity: Entity) -> Result<()> {
         if self.entities.contains(&entity) {
-            return Err(ECSError::EntityAlreadyHasComponent(entity, std::any::type_name::<C>()))
+            return Err(ECSError::EntityAlreadyHasComponent(entity, ComponentErrorIdentifier::Name(std::any::type_name::<C>())))
         } else {
             self.data.push(data);
             self.entities.push(entity);
@@ -87,7 +94,7 @@ impl<C> Storage<C>
                 return Ok(self.data.get(i).unwrap())
             }
         }
-        Err(ECSError::EntityDoesNotHaveComponent(entity, std::any::type_name::<C>()))
+        Err(ECSError::EntityDoesNotHaveComponent(entity, ComponentErrorIdentifier::Name(std::any::type_name::<C>())))
     }
 
     pub fn get_mut_component_with_entity(&mut self, entity: Entity) -> Result<&mut C> {
@@ -96,7 +103,7 @@ impl<C> Storage<C>
                 return Ok(self.data.get_mut(i).unwrap())
             }
         }
-        Err(ECSError::EntityDoesNotHaveComponent(entity, std::any::type_name::<C>()))
+        Err(ECSError::EntityDoesNotHaveComponent(entity, ComponentErrorIdentifier::Name(std::any::type_name::<C>())))
     }
 }
 
@@ -113,7 +120,7 @@ impl<C> GenericStorage for Storage<C>
 
     fn insert_component_with_entity(&mut self, entity: Entity, data: Box<dyn Any>) -> Result<()> {
         if self.entities.contains(&entity) {
-            return Err(ECSError::EntityAlreadyHasComponent(entity, std::any::type_name::<C>()))
+            return Err(ECSError::EntityAlreadyHasComponent(entity, ComponentErrorIdentifier::Name(std::any::type_name::<C>())))
         } else {
             let data = *(match data.downcast::<C>() {
                 Ok(data) => data,
@@ -134,7 +141,7 @@ impl<C> GenericStorage for Storage<C>
             self.entities.swap_remove(i);
             Ok(())
         } else {
-            return Err(ECSError::EntityDoesNotHaveComponent(entity, std::any::type_name::<C>()))
+            return Err(ECSError::EntityDoesNotHaveComponent(entity, ComponentErrorIdentifier::Name(std::any::type_name::<C>())))
         }
     }
 
@@ -156,33 +163,39 @@ fn test_storage() {
     let mut boxed_storage = BoxedStorage::create::<SomeComponent>();
     boxed_storage
         .get_mut_storage::<SomeComponent>()
+        .unwrap()
         .insert_component_with_entity(SomeComponent(69), entity_a)
         .unwrap();
     assert_eq!(
         boxed_storage
             .get_mut_storage::<SomeComponent>()
+        .unwrap()
             .insert_component_with_entity(SomeComponent(69), entity_a),
-        Err(ECSError::EntityAlreadyHasComponent(entity_a, std::any::type_name::<SomeComponent>()))
+        Err(ECSError::EntityAlreadyHasComponent(entity_a, ComponentErrorIdentifier::Name(std::any::type_name::<SomeComponent>())))
     );
     boxed_storage
         .get_mut_storage::<SomeComponent>()
+        .unwrap()
         .insert_component_with_entity(SomeComponent(420), entity_b)
         .unwrap();
     assert_eq!(
         boxed_storage
             .get_mut_storage::<SomeComponent>()
+            .unwrap()
             .get_entities(),
         &vec![entity_a, entity_b]
     );
     assert_eq!(
         boxed_storage
             .get_mut_storage::<SomeComponent>()
+            .unwrap()
             .get_component_with_entity_of(entity_a),
         Ok(&SomeComponent(69))
     );
     assert_eq!(
         boxed_storage
             .get_mut_storage::<SomeComponent>()
+            .unwrap()
             .get_component_with_entity_of(entity_b),
         Ok(&SomeComponent(420))
     );
@@ -193,12 +206,14 @@ fn test_storage() {
     assert_eq!(
         boxed_storage
             .get_mut_storage::<SomeComponent>()
+            .unwrap()
             .get_component_with_entity_of(entity_a),
-        Err(ECSError::EntityDoesNotHaveComponent(entity_a, std::any::type_name::<SomeComponent>()))
+        Err(ECSError::EntityDoesNotHaveComponent(entity_a, ComponentErrorIdentifier::Name(std::any::type_name::<SomeComponent>())))
     );
     assert_eq!(
         boxed_storage
             .get_mut_storage::<SomeComponent>()
+            .unwrap()
             .get_component_with_entity_of(entity_b),
         Ok(&SomeComponent(420))
     );

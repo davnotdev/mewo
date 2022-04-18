@@ -17,7 +17,7 @@ impl TermPlugin {
     }
 
     pub fn plugin(pb: &mut PluginBuilder) {
-        let cmds = pb.commands();
+        let mut cmds = pb.commands();
         cmds.modify_resources(|rmgr| {
             rmgr.insert::<TermContext>(TermContext {
                 rb: RustBox::init(Default::default()).unwrap()

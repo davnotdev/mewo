@@ -1,3 +1,7 @@
+use crate::error::{
+    Result,
+    ECSError,
+};
 use std::collections::HashMap;
 use std::any::{
     Any, 
@@ -38,28 +42,26 @@ impl ResourceManager {
         self.data.insert(TypeId::of::<R>(), Box::new(resource));
     }
 
-    pub fn get<R>(&self) -> &R 
+    pub fn get<R>(&self) -> Result<&R>
         where R: 'static + Resource
     {
         if let Some(any) = self.data.get(&TypeId::of::<R>()) {
-            any
-                .downcast_ref::<R>()
-                .unwrap()
-        } else {
-            panic!("Resource `{}` Not Found", std::any::type_name::<R>())
+            if let Some(res) = any.downcast_ref::<R>() {
+                return Ok(res)
+            }
         }
+        Err(ECSError::ResourceNotFound(std::any::type_name::<R>()))
     }
 
-    pub fn get_mut<R>(&mut self) -> &mut R 
+    pub fn get_mut<R>(&mut self) -> Result<&mut R>
         where R: 'static + Resource
     {
         if let Some(any) = self.data.get_mut(&TypeId::of::<R>()) {
-            any
-                .downcast_mut::<R>()
-                .unwrap()
-        } else {
-            panic!("Resource `{}` Not Found", std::any::type_name::<R>())
+            if let Some(res) = any.downcast_mut::<R>() {
+                return Ok(res)
+            }
         }
+        Err(ECSError::ResourceNotFound(std::any::type_name::<R>()))
     }
 }
 

@@ -42,7 +42,7 @@ impl Executor for StraightExecutor {
         world.reset_world_changed();
 
         for mods in self.commands.entity_cmds.iter_mut() {
-            world.modify_entity(mods);
+            world.modify_entity(mods).unwrap();
         }
         let modifies = &self.commands.resource_modifies;
         for modify in modifies {
@@ -107,17 +107,19 @@ fn test_straight_executor() {
     let mut entity_mod_store = EntityModifierStore::create(EntityModifierHandle::Spawn, &world);
     let mut entity_mod = entity_mod_store.modify(&world);
     entity_mod.insert_component(Data(0, 0, 0));
-    world.modify_entity(&mut entity_mod_store);
+    world.modify_entity(&mut entity_mod_store).unwrap();
     let mut entity_mod_store = EntityModifierStore::create(EntityModifierHandle::Spawn, &world);
     let mut entity_mod = entity_mod_store.modify(&world);
-    entity_mod.insert_component(Data(0, 0, 0));
-    entity_mod.insert_component(With);
-    world.modify_entity(&mut entity_mod_store);
+    entity_mod
+        .insert_component(Data(0, 0, 0))
+        .insert_component(With);
+    world.modify_entity(&mut entity_mod_store).unwrap();
     let mut entity_mod_store = EntityModifierStore::create(EntityModifierHandle::Spawn, &world);
     let mut entity_mod = entity_mod_store.modify(&world);
-    entity_mod.insert_component(Data(0, 0, 0));
-    entity_mod.insert_component(Without);
-    world.modify_entity(&mut entity_mod_store);
+    entity_mod
+        .insert_component(Data(0, 0, 0))
+        .insert_component(Without);
+    world.modify_entity(&mut entity_mod_store).unwrap();
 
     let sysall_info = SystemData::from_query_type(&world, &sysall.get_wish_info());
     let syswith_info = SystemData::from_query_type(&world, &syswith.get_wish_info());
@@ -129,8 +131,8 @@ fn test_straight_executor() {
     ]);
     exec.execute(&mut world);
 
-    assert_eq!(world.get_component_with_entity::<Data>(Entity { id: 0 }), &Data(1, 0, 1));
-    assert_eq!(world.get_component_with_entity::<Data>(Entity { id: 1 }), &Data(1, 1, 1));
-    assert_eq!(world.get_component_with_entity::<Data>(Entity { id: 2 }), &Data(1, 0, 0));
+    assert_eq!(world.get_component_with_entity::<Data>(Entity { id: 0 }), Ok(&Data(1, 0, 1)));
+    assert_eq!(world.get_component_with_entity::<Data>(Entity { id: 1 }), Ok(&Data(1, 1, 1)));
+    assert_eq!(world.get_component_with_entity::<Data>(Entity { id: 2 }), Ok(&Data(1, 0, 0)));
 }
 

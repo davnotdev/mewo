@@ -60,7 +60,6 @@ pub struct WorldCommands<'world, 'store> {
 }
 
 impl<'world, 'store> WorldCommands<'world, 'store> {
-
     pub fn modify_entity(&mut self, entity: Entity) -> EntityModifier {
         let store = EntityModifierStore::create(EntityModifierHandle::Modify(entity), self.world);
         self.entity_cmds.push(store);

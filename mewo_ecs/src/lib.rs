@@ -8,4 +8,7 @@ pub use app::*;
 pub use world::*;
 pub use plugin::*;
 pub use executor::*;
-pub use error::ECSError;
+pub use error::{
+    ECSError,
+    ComponentErrorIdentifier,
+};

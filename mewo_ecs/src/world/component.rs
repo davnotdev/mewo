@@ -1,4 +1,8 @@
-use crate::error::{ Result, ECSError };
+use crate::error::{ 
+    Result, 
+    ECSError, 
+    ComponentErrorIdentifier 
+};
 use std::any::TypeId;
 use std::collections::HashMap;
 use sparseset::SparseSet;
@@ -28,7 +32,7 @@ impl ComponentManager {
     {
         let t = TypeId::of::<C>();
         if self.component_types.contains_key(&t) {
-            return Err(ECSError::ComponentTypeExists(std::any::type_name::<C>()))
+            return Err(ECSError::ComponentTypeExists(ComponentErrorIdentifier::Name(std::any::type_name::<C>())))
         }
         let id = self.get_component_type_count();
         self.component_types.insert(t, id);
@@ -39,7 +43,7 @@ impl ComponentManager {
     pub fn get_component_id(&self, ty: TypeId) -> Result<ComponentTypeId> {
         match self.component_types.get(&ty) {
             Some(id) => Ok(*id),
-            None => Err(ECSError::ComponentTypeDoesNotExist),
+            None => Err(ECSError::ComponentTypeDoesNotExist(ComponentErrorIdentifier::Unknown)),
         }
     }
 
@@ -48,7 +52,7 @@ impl ComponentManager {
     {
         match self.component_types.get(&TypeId::of::<C>()) {
             Some(id) => Ok(*id),
-            None => Err(ECSError::ComponentTypeDoesNotExist),
+            None => Err(ECSError::ComponentTypeDoesNotExist(ComponentErrorIdentifier::Name(std::any::type_name::<C>()))),
         }
     }
 
@@ -60,28 +64,40 @@ impl ComponentManager {
         self.component_types.len()
     }
 
-    pub fn get_boxed_storage_of<C>(&self) -> &BoxedStorage 
+    pub fn get_boxed_storage_of<C>(&self) -> Result<&BoxedStorage>
         where C: 'static + Component
     {
-        self.storages.get(self.component_types[&TypeId::of::<C>()])
-            .unwrap()
+        if let Some(storage) = self.storages.get(self.component_types[&TypeId::of::<C>()]) {
+            Ok(storage)
+        } else {
+            Err(ECSError::ComponentTypeDoesNotExist(ComponentErrorIdentifier::Name(std::any::type_name::<C>())))
+        }
     }
 
-    pub fn get_mut_boxed_storage_of<C>(&mut self) -> &mut BoxedStorage 
+    pub fn get_mut_boxed_storage_of<C>(&mut self) -> Result<&mut BoxedStorage>
         where C: 'static + Component
     {
-        self.storages.get_mut(self.component_types[&TypeId::of::<C>()])
-            .unwrap()
+        if let Some(storage) = self.storages.get_mut(self.component_types[&TypeId::of::<C>()]) {
+            Ok(storage)
+        } else {
+            Err(ECSError::ComponentTypeDoesNotExist(ComponentErrorIdentifier::Name(std::any::type_name::<C>())))
+        }
     }
 
-    pub fn get_boxed_storage(&self, id: ComponentTypeId) -> &BoxedStorage {
-        self.storages.get(id)
-            .unwrap()
+    pub fn get_boxed_storage(&self, id: ComponentTypeId) -> Result<&BoxedStorage> {
+        if let Some(storage) = self.storages.get(id) {
+            Ok(storage)
+        } else {
+            Err(ECSError::ComponentTypeDoesNotExist(ComponentErrorIdentifier::Id(id)))
+        }
     }
 
-    pub fn get_mut_boxed_storage(&mut self, id: ComponentTypeId) -> &mut BoxedStorage {
-        self.storages.get_mut(id)
-            .unwrap()
+    pub fn get_mut_boxed_storage(&mut self, id: ComponentTypeId) -> Result<&mut BoxedStorage> {
+        if let Some(storage) = self.storages.get_mut(id) {
+            Ok(storage)
+        } else {
+            Err(ECSError::ComponentTypeDoesNotExist(ComponentErrorIdentifier::Id(id)))
+        }
     }
 }
 

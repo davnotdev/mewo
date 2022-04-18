@@ -1,14 +1,24 @@
-use crate::Entity;
+use crate::{
+    Entity,
+    ComponentTypeId,
+};
+
+#[derive(Debug, PartialEq)]
+pub enum ComponentErrorIdentifier {
+    Unknown,
+    Name(&'static str),
+    Id(ComponentTypeId),
+}
 
 #[derive(Debug, PartialEq)]
 pub enum ECSError {
-    ComponentTypeExists(&'static str),
-    ComponentTypeDoesNotExist,
-    EntityAlreadyHasComponent(Entity, &'static str),
-    EntityDoesNotHaveComponent(Entity, &'static str),
+    ComponentTypeExists(ComponentErrorIdentifier),
+    ComponentTypeDoesNotExist(ComponentErrorIdentifier),
+    EntityAlreadyHasComponent(Entity, ComponentErrorIdentifier),
+    EntityDoesNotHaveComponent(Entity, ComponentErrorIdentifier),
     EntityDoesNotExist(Entity),
     PluginDependencyNotFound(String),
-    
+    ResourceNotFound(&'static str),
 }
 
 pub type Result<T> = std::result::Result<T, ECSError>;

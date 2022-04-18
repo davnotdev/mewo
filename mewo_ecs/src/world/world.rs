@@ -47,7 +47,7 @@ impl World {
         callback.call(&mut self.resource_mgr);
     }
 
-    pub fn modify_entity(&mut self, entity_mod: &mut EntityModifierStore) {
+    pub fn modify_entity(&mut self, entity_mod: &mut EntityModifierStore) -> Result<()> {
         let entity = if let EntityModifierHandle::Modify(e) = entity_mod.entity {
             e
         } else {
@@ -58,14 +58,15 @@ impl World {
             match &mut component_mod.modify {
                 EntityComponentModifyType::Insert(insert) => {
                     let data = std::mem::replace(insert, None);
-                    self.insert_component_with_entity(entity, data.unwrap(), cid);
+                    self.insert_component_with_entity(entity, data.unwrap(), cid)?;
                 }
                 EntityComponentModifyType::Remove => {
-                    self.remove_component_with_entity(entity, cid);
+                    self.remove_component_with_entity(entity, cid)?;
                 },
             };
         }
         self.world_changed = true;
+        Ok(())
     }
 
     pub fn insert_entity(&mut self) -> Entity {
@@ -75,52 +76,58 @@ impl World {
         entity
     }
 
-    pub fn remove_entity(&mut self, entity: Entity) {
-        let dep_info = self.entity_dep_info.remove(entity.as_index())
-            .unwrap();
+    pub fn remove_entity(&mut self, entity: Entity) -> Result<()> {
+        let dep_info = if let Some(dep_info) = self.entity_dep_info.remove(entity.as_index()) {
+            dep_info
+        } else {
+            return Err(ECSError::EntityDoesNotExist(entity))
+        };
         for cid in 0..dep_info.get_mask().get_len() {
             if dep_info.get(cid) {
                 self.component_mgr
-                    .get_mut_boxed_storage(cid)
+                    .get_mut_boxed_storage(cid)?
                     .get_mut_untyped_storage()
-                    .remove_component_with_entity(entity)
-                    .unwrap();
+                    .remove_component_with_entity(entity)?
             }
         }
         self.entity_mgr.deregister_entity(entity).unwrap();
         self.world_changed = true;
+        Ok(())
     }
 
-    pub fn insert_component_with_entity(&mut self, entity: Entity, obj: Box<dyn Any>, cid: ComponentTypeId) {
+    pub fn insert_component_with_entity(&mut self, entity: Entity, obj: Box<dyn Any>, cid: ComponentTypeId) -> Result<()> {
+        if let Some(stamp) = self.entity_dep_info.get_mut(entity.as_index()) {
+            stamp.stamp(cid);
+        } else {
+            return Err(ECSError::EntityDoesNotExist(entity))
+        };
         self.get_mut_component_manager()
-            .get_mut_boxed_storage(cid)
+            .get_mut_boxed_storage(cid)?
             .get_mut_untyped_storage()
-            .insert_component_with_entity(entity, obj)
-            .unwrap();
-        self.entity_dep_info.get_mut(entity.as_index())
-            .unwrap()
-            .stamp(cid);
+            .insert_component_with_entity(entity, obj)?;
         self.world_changed = true;
+        Ok(())
     }
 
-    pub fn remove_component_with_entity(&mut self, entity: Entity, cid: ComponentTypeId) {
+    pub fn remove_component_with_entity(&mut self, entity: Entity, cid: ComponentTypeId) -> Result<()> {
+        if let Some(stamp) = self.entity_dep_info.get_mut(entity.as_index()) {
+            stamp.unstamp(cid);
+        } else {
+            return Err(ECSError::EntityDoesNotExist(entity))
+        };
         self.get_mut_component_manager()
-            .get_mut_boxed_storage(cid)
+            .get_mut_boxed_storage(cid)?
             .get_mut_untyped_storage()
-            .remove_component_with_entity(entity)
-            .unwrap();
-        self.entity_dep_info.get_mut(entity.as_index())
-            .unwrap()
-            .unstamp(cid);
+            .remove_component_with_entity(entity)?;
         self.world_changed = true;
+        Ok(())
     }
 
-    pub fn component<C>(&self) -> ComponentTypeId
+    pub fn component<C>(&self) -> Result<ComponentTypeId>
         where C: 'static + Component
     {
         self.get_component_manager()
             .get_component_id_of::<C>()
-            .unwrap()
     }
 
     pub fn is_world_changed(&self) -> bool {
@@ -137,24 +144,22 @@ impl World {
         &self.resource_mgr
     }
 
-    pub fn get_component_with_entity<C>(&self, entity: Entity) -> &C 
+    pub fn get_component_with_entity<C>(&self, entity: Entity) -> Result<&C>
         where C: 'static + Component
     {
         self.get_component_manager()
-            .get_boxed_storage_of::<C>()
-            .get_storage::<C>()
+            .get_boxed_storage_of::<C>()?
+            .get_storage::<C>()?
             .get_component_with_entity_of(entity)
-            .unwrap()
     }
 
-    pub fn get_mut_component_with_entity<C>(&mut self, entity: Entity) -> &mut C 
+    pub fn get_mut_component_with_entity<C>(&mut self, entity: Entity) -> Result<&mut C>
         where C: 'static + Component
     {
         self.get_mut_component_manager()
-            .get_mut_boxed_storage_of::<C>()
-            .get_mut_storage::<C>()
+            .get_mut_boxed_storage_of::<C>()?
+            .get_mut_storage::<C>()?
             .get_mut_component_with_entity(entity)
-            .unwrap()
 
     }
 
