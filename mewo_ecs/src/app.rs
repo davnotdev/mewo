@@ -1,19 +1,22 @@
 use crate::*;
 use error::Result;
 
-pub struct App<E> 
-    where E: Executor
+pub struct App<E>
+where
+    E: Executor,
 {
-    exec: E, 
+    exec: E,
     world: World,
 }
 
-impl<E> App<E> 
-    where E: Executor
+impl<E> App<E>
+where
+    E: Executor,
 {
     pub fn run(&mut self) {
         loop {
-            self.exec.execute(&mut self.world);
+            self.exec.run_systems(&mut self.world);
+            self.exec.run_commands(&mut self.world);
         }
     }
 
@@ -28,16 +31,16 @@ impl<E> App<E>
 
 pub struct AppBuilder {
     world: World,
-    commands: WorldCommandsStore,
-    plugins: Vec<(String, Vec<(BoxedSystem, SystemData)>)>,
-    plugins_start: Vec<(String, Vec<(BoxedSystem, SystemData)>)>,
-    plugins_end: Vec<(String, Vec<(BoxedSystem, SystemData)>)>,
+    commands: WorldCommands,
+    plugins: Vec<(String, Vec<(BoxedSystem, SystemDataSet)>)>,
+    plugins_start: Vec<(String, Vec<(BoxedSystem, SystemDataSet)>)>,
+    plugins_end: Vec<(String, Vec<(BoxedSystem, SystemDataSet)>)>,
 }
 
-impl AppBuilder { 
+impl AppBuilder {
     pub fn create() -> Self {
         AppBuilder {
-            commands: WorldCommandsStore::create(),
+            commands: WorldCommands::create(),
             world: World::create(),
             plugins: Vec::new(),
             plugins_start: Vec::new(),
@@ -45,10 +48,21 @@ impl AppBuilder {
         }
     }
 
-    fn plugin_build(world: &mut World, callback: PluginBuildCallback) -> (Vec<String>, Vec<(BoxedSystem, SystemData)>, WorldCommandsStore) {
+    fn plugin_build(
+        world: &mut World,
+        callback: PluginBuildCallback,
+    ) -> (
+        Vec<String>,
+        Vec<(BoxedSystem, SystemDataSet)>,
+        WorldCommands,
+    ) {
         let mut builder = PluginBuilder::create(world);
         (callback)(&mut builder);
-        (builder.deps, builder.systems, builder.commands)
+        (
+            builder.deps,
+            builder.system_builder.consume(),
+            builder.commands,
+        )
     }
 
     fn check_deps(&self, deps: Vec<String>) -> Result<()> {
@@ -58,7 +72,7 @@ impl AppBuilder {
                     break;
                 }
             }
-            return Err(ECSError::PluginDependencyNotFound(dep))
+            return Err(ECSError::PluginDependencyNotFound(dep));
         }
         Ok(())
     }
@@ -87,14 +101,16 @@ impl AppBuilder {
         self
     }
 
-    pub fn build<E>(self) -> App<E> 
-        where E: Executor
+    pub fn build<E>(self) -> App<E>
+    where
+        E: Executor,
     {
-        let mut finals = Vec::new();    
+        let mut finals = Vec::new();
         for (_name, plugin) in self
-            .plugins_start.into_iter()
+            .plugins_start
+            .into_iter()
             .chain(self.plugins.into_iter())
-            .chain(self.plugins_end.into_iter()) 
+            .chain(self.plugins_end.into_iter())
         {
             for sys in plugin.into_iter() {
                 finals.push(sys)
@@ -106,4 +122,3 @@ impl AppBuilder {
         }
     }
 }
-

@@ -1,3 +1,4 @@
+/*
 use rustbox::Key;
 use mewo_common::Event;
 use mewo_ecs::*;
@@ -20,3 +21,4 @@ pub fn term_input(_w: Wish<()>, mut args: SystemArgs) {
         _ => {},
     };
 }
+*/

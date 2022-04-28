@@ -1,14 +1,13 @@
 pub mod app;
+pub mod data;
 pub mod error;
-pub mod world;
-pub mod plugin;
 pub mod executor;
+pub mod plugin;
+pub mod world;
 
 pub use app::*;
-pub use world::*;
-pub use plugin::*;
+pub use data::*;
+pub use error::{ComponentErrorIdentifier, ECSError};
 pub use executor::*;
-pub use error::{
-    ECSError,
-    ComponentErrorIdentifier,
-};
+pub use plugin::*;
+pub use world::*;

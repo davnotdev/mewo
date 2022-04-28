@@ -1,60 +1,31 @@
-mod mask;
-mod storage;
 mod entity_manager;
+mod storage;
 
-pub mod wish;
-pub mod world;
-pub mod entity;
-pub mod system;
+#[cfg(test)]
+pub mod test_system;
+
 pub mod command;
-pub mod resource;
 pub mod component;
 pub mod component_stamp;
-
-pub use wish::{
-    Read,
-    Write,
-    WishArg,
-};
-pub use world::{
-    World,
-};
+pub mod entity;
+pub mod resource;
+pub mod system;
+pub mod wish;
+pub mod wish_impl;
+pub mod world;
+pub use command::WorldCommands;
+pub use component::{Component, ComponentTypeId};
+pub use component_stamp::ComponentStamp;
 pub use entity::{
-    Entity, 
-    EntityModifier,
-    EntityModifierStore,
-    EntityModifierHandle,
-    EntityComponentModify,
-    EntityComponentModifyType,
-};
-pub use system::{
-    Wish,
-    System,
-    GlobalWish,
-    SystemWish,
-    SystemArgs,
-    SystemData,
-    BoxedSystem,
-    SystemFilter,
-    WishInstance,
-    SystemCallback,
-    GiftInstanceReadIter,
-    GiftInstanceWriteIter,
-};
-pub use command::{
-    WorldCommands,
-    WorldCommandsStore,
+    BoxedEntityModifyCallback, Entity, EntityModifyCallback, EntityModifyHandle, EntityWrapper,
 };
 pub use resource::{
-    Resource,
-    ResourceManager,
+    BoxedResourceModifyCallback, GenericResourceModifyCallback, Resource, ResourceManager,
     ResourceModifyCallback,
-    BoxedResourceModifyCallback,
-    GenericResourceModifyCallback,
 };
-pub use component::{
-    Component,
-    ComponentTypeId,
+pub use system::{
+    BoxedSystem, ComponentAccessMode, FilterMode, SystemArgs, SystemBuilder,
+    SystemCallback, SystemDataSet, SystemDataSetInstance, SystemFilter, UntypedSystemCallback,
 };
-pub use component_stamp::ComponentStamp;
-
+pub use wish::{Wish, WishFilter, WishFilters, WishIter, WishType, WishTypes, With, Without, R, W};
+pub use world::World;

@@ -1,16 +1,6 @@
-pub use crate::world::{
-    WishInstance,
-    World, 
-    Entity, 
-    System, 
-    SystemArgs,
-    SystemWish,
-    SystemData, 
-    GlobalWish,
-    BoxedSystem,
-    WorldCommands,
-    WorldCommandsStore,
-    EntityModifierHandle,
+pub use crate::{
+    BoxedSystem, Entity, EntityModifyHandle, SystemArgs, SystemDataSet, SystemDataSetInstance,
+    UntypedSystemCallback, World, WorldCommands,
 };
 
 pub use straight::StraightExecutor;
@@ -19,6 +9,7 @@ pub type DefaultExecutor = StraightExecutor;
 pub mod straight;
 
 pub trait Executor {
-    fn create(world: &World, sys: Vec<(BoxedSystem, SystemData)>) -> Self;
-    fn execute(&mut self, world: &mut World);
+    fn create(world: &World, systems: Vec<(BoxedSystem, SystemDataSet)>) -> Self;
+    fn run_systems(&mut self, world: &mut World);
+    fn run_commands(&mut self, world: &mut World);
 }

@@ -1,30 +1,34 @@
-use crate::error::{ Result, ECSError };
-use super::entity::{ Id, Entity };
-use super::mask::BoolMask;
+use crate::error::{ 
+    Result, 
+    ECSError 
+};
+use super::entity::{ 
+    Id, 
+    Entity 
+};
 
 const ENTITY_MANAGER_EXTEND_CONST: usize = 128;
 
 pub struct EntityManager {
-    entities: BoolMask, 
+    entities: Vec<bool>, 
     entity_count: Id,
 }
 
 impl EntityManager {
     pub fn create() -> EntityManager {
         EntityManager {
-            entities: BoolMask::create(),
+            entities: Vec::with_capacity(ENTITY_MANAGER_EXTEND_CONST),
             entity_count: 0,
         } 
     }
 
     pub fn register_entity(&mut self) -> Entity {
-        if self.entities.get_len() >= self.entity_count as usize {
-            self.entities.extend(ENTITY_MANAGER_EXTEND_CONST);
+        if self.entities.len() >= self.entity_count as usize {
+            self.entities.resize(ENTITY_MANAGER_EXTEND_CONST, false)
         };
-        for ei in 0..self.entities.get_len() {
-            let taken = self.entities.get(ei).unwrap();
-            if !taken {
-                self.entities.set(ei, true).unwrap();
+        for (ei, taken) in self.entities.iter_mut().enumerate() {
+            if !*taken {
+                *taken = true;
                 self.entity_count += 1;
                 return Entity::from_id(ei as Id);
             }
@@ -37,7 +41,7 @@ impl EntityManager {
 
     pub fn deregister_entity(&mut self, entity: Entity) -> Result<()> {
         if self.entity_exists(entity) {
-            self.entities.set(entity.id as usize, false).unwrap();
+            *self.entities.get_mut(entity.as_index()).unwrap() = false;
             self.entity_count -= 1; 
             return Ok(())
         }
@@ -45,12 +49,15 @@ impl EntityManager {
     }
 
     pub fn entity_exists(&self, entity: Entity) -> bool {
-        if let Ok(exists) = self.entities.get(entity.id as usize) {
-            if exists {
-                return true
-            }
+        if let Some(exists) = self.entities.get(entity.as_index()) {
+            *exists
+        } else {
+            false
         }
-        false
+    }
+
+    pub fn get_entity_count(&self) -> usize {
+        self.entity_count as usize
     }
 }
 

@@ -1,15 +1,11 @@
-use std::any::Any;
-use super::component::{
-    Component,
-    ComponentTypeId,
-};
-use super::world::World; 
+use super::component::Component;
+use super::world::World;
 
 pub type Id = u32;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Hash)]
 pub struct Entity {
-    pub id: Id, 
+    pub id: Id,
 }
 
 impl Entity {
@@ -17,81 +13,63 @@ impl Entity {
         Entity { id }
     }
 
+    pub fn from_index(id: usize) -> Entity {
+        Entity { id: id as Id }
+    }
+
     pub fn as_index(&self) -> usize {
         self.id as usize
-    } 
+    }
 }
 
-pub enum EntityComponentModifyType {
-    Insert(Option<Box<dyn Any>>),
-    Remove,
-}
-
-pub struct EntityComponentModify {
-    pub cid: ComponentTypeId,
-    pub modify: EntityComponentModifyType,
-}
-
-#[derive(PartialEq)]
-pub enum EntityModifierHandle {
+pub enum EntityModifyHandle {
     Spawn,
-    Modify(Entity),
+    Entity(Entity),
 }
 
-pub struct EntityModifierStore {
-    pub entity: EntityModifierHandle,
-    pub components: Vec<EntityComponentModify>,
+pub struct EntityWrapper<'world> {
+    world: &'world mut World,
+    entity: Entity,
 }
 
-impl EntityModifierStore {
-    pub fn create(entity: EntityModifierHandle, world: &World) -> EntityModifierStore {
-        let store = EntityModifierStore {
-            entity,
-            components: Vec::with_capacity(world.get_component_manager().get_component_type_count())
-        };
-        store
+impl<'world> EntityWrapper<'world> {
+    pub fn from_entity(entity: Entity, world: &'world mut World) -> Self {
+        EntityWrapper { world, entity }
     }
 
-    pub fn modify<'world, 'store>(&'store mut self, world: &'world World) -> EntityModifier<'world, 'store> {
-        EntityModifier {
-            world,
-            components: &mut self.components,
-        }
-    }
-}
-
-pub struct EntityModifier<'world, 'store> {
-    world: &'world World,
-    components: &'store mut Vec<EntityComponentModify>,
-}
-
-impl<'world, 'store> EntityModifier<'world, 'store> {
-    pub fn insert_component<C>(&mut self, obj: C) -> &mut Self
-        where C: 'static + Component
+    pub fn insert_component<C>(&mut self, data: C) -> &mut Self
+    where
+        C: 'static + Component,
     {
-        let id = self.world
-            .get_component_manager()
-            .get_component_id_of::<C>()
+        self.world
+            .insert_component_with_entity::<C>(self.entity, data)
             .unwrap();
-        self.components.push(EntityComponentModify {
-            cid: id,
-            modify: EntityComponentModifyType::Insert(Some(Box::new(obj))),
-        });
         self
     }
 
     pub fn remove_component<C>(&mut self) -> &mut Self
-        where C: 'static + Component
+    where
+        C: 'static + Component,
     {
-        let id = self.world
-            .get_component_manager()
-            .get_component_id_of::<C>()
+        self.world
+            .remove_component_with_entity::<C>(self.entity)
             .unwrap();
-        self.components.push(EntityComponentModify {
-            cid: id,
-            modify: EntityComponentModifyType::Remove,
-        });
         self
     }
 }
 
+pub struct EntityModifyCallback<F: Fn(&mut EntityWrapper) -> ()>(pub F);
+pub trait GenericEntityModifyCallback {
+    fn call(&self, entity: Entity, world: &mut World);
+}
+pub type BoxedEntityModifyCallback = Box<dyn GenericEntityModifyCallback>;
+
+impl<F> GenericEntityModifyCallback for EntityModifyCallback<F>
+where
+    F: Fn(&mut EntityWrapper),
+{
+    fn call(&self, entity: Entity, world: &mut World) {
+        let mut wrapper = EntityWrapper::from_entity(entity, world);
+        (self.0)(&mut wrapper);
+    }
+}

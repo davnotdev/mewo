@@ -1,82 +1,97 @@
 use super::component::ComponentTypeId;
 use super::world::World;
-use super::mask::BoolMask;
+use crate::error::{ComponentErrorIdentifier, ECSError, Result};
+use crate::BoolMask;
 
+#[derive(Debug, Clone)]
 pub struct ComponentStamp {
-    mask: BoolMask,
+    len: usize,
+    stamp: BoolMask,
 }
 
 impl ComponentStamp {
-    pub fn create(scene: &World) -> ComponentStamp {
-        let mut mask = BoolMask::create();
-        let len = scene
-            .get_component_manager()
-            .get_component_type_count();
-        mask.extend(len-mask.get_len());
-        ComponentStamp { 
-            mask, 
+    pub fn create(world: &World) -> ComponentStamp {
+        Self::create_from_len(world.get_component_manager().get_component_type_count())
+    }
+
+    pub fn create_from_len(len: usize) -> ComponentStamp {
+        ComponentStamp {
+            len,
+            stamp: BoolMask::create_with_capacity(len),
         }
     }
 
-    pub fn from(mask: BoolMask) -> ComponentStamp {
-        ComponentStamp { 
-            mask,
-        }
-    }
-    pub fn stamp(&mut self, id: ComponentTypeId) -> &mut Self {
-        match self.mask.set(id, true) {
-            Err(_) => { unreachable!("Only reachable if self.mask.extend fails") }
-            _ => {}
-        }
-        self
-    }
-
-    pub fn unstamp(&mut self, id: ComponentTypeId) -> &mut Self {
-        match self.mask.set(id, false) {
-            Err(_) => { unreachable!("Only reachable if self.mask.extend fails") }
-            _ => {}
-        }
-        self
-    }
-
-    pub fn get_mask(&self) -> &BoolMask {
-        &self.mask
-    }
-
-    pub fn get_mut_mask(&mut self) -> &mut BoolMask {
-        &mut self.mask
-    }
-
-    pub fn get(&self, i: usize) -> bool {
-        match self.mask.get(i) {
-            Ok(res) => res,
-            _ => panic!("The Component Id `{}` does not exist", i)
+    pub fn stamp(&mut self, id: ComponentTypeId) -> Result<()> {
+        if id >= self.len {
+            Err(ECSError::ComponentTypeDoesNotExist(
+                ComponentErrorIdentifier::Id(id),
+            ))
+        } else {
+            self.stamp.set(id, true);
+            Ok(())
         }
     }
 
-    pub fn set(&mut self, i: usize, val: bool) {
-        match self.mask.set(i, val) {
-            Ok(res) => res,
-            _ => panic!("The Component Id `{}` does not exist", i)
+    pub fn unstamp(&mut self, id: ComponentTypeId) -> Result<()> {
+        if id >= self.len {
+            Err(ECSError::ComponentTypeDoesNotExist(
+                ComponentErrorIdentifier::Id(id),
+            ))
+        } else {
+            self.stamp.set(id, false);
+            Ok(())
         }
+    }
+
+    pub fn get(&self, id: ComponentTypeId) -> Result<bool> {
+        if id >= self.len {
+            Err(ECSError::ComponentTypeDoesNotExist(
+                ComponentErrorIdentifier::Id(id),
+            ))
+        } else {
+            Ok(self.stamp.get(id))
+        }
+    }
+
+    pub fn get_len(&self) -> usize {
+        self.len
     }
 
     pub fn is_empty(&self) -> bool {
-        self.mask.is_empty()
+        self.stamp.is_empty()
     }
 
-    pub fn compare(&self, other: &ComponentStamp) -> bool {
-        match self.mask.compare(&other.mask) {
-            Ok(res) => res,
-            _ => unreachable!("Only reachable if component stamps have different lengths")
+    pub fn merge(&mut self, other: &ComponentStamp) -> Result<()> {
+        if self.stamp.merge(&other.stamp).is_none() {
+            unreachable!("Two Component Stamps should ALWAYS have the same # of Component Types")
         }
+        Ok(())
     }
 
-    pub fn bitwise_and(&self, other: &ComponentStamp) -> ComponentStamp {
-        match self.mask.bitwise_and(&other.mask) {
-            Ok(res) => ComponentStamp::from(res),
-            _ => unreachable!("Only reachable if component stamps have different lengths")
+    //  function specially tailored for use in system.rs
+    pub fn system_match(
+        entity_dep: &ComponentStamp,
+        total_withs: &ComponentStamp,
+        without: &Option<ComponentStamp>,
+    ) -> bool {
+        let with_res = if let Some(res) = entity_dep.stamp.bitwise_and(&total_withs.stamp) {
+            res
+        } else {
+            unreachable!("All ComponentStamps should be of identical length (With)")
+        };
+        if !with_res.compare(&total_withs.stamp) {
+            return false;
         }
+        if let Some(without) = without {
+            let without_res = if let Some(res) = entity_dep.stamp.bitwise_and(&without.stamp) {
+                res
+            } else {
+                unreachable!("All ComponentStamps should be of identical length (Without)")
+            };
+            if without_res.compare(&without.stamp) {
+                return false;
+            }
+        }
+        true
     }
 }
-

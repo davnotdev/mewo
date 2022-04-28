@@ -3,8 +3,8 @@ use mewo_ecs::*;
 pub struct Event;
 impl Component for Event {}
 
-fn remove_events(w: Wish<Read<Event>>, mut args: SystemArgs) {
-    for (_event, e) in w.read::<Event>() {
+fn remove_events(args: &mut SystemArgs, w: Wish<(), With<Event>>) {
+    for (e, _event) in w.iter() {
         args.cmds.remove_entity(e);
     }
 }
@@ -17,10 +17,6 @@ impl EventPlugin {
     }
 
     pub fn plugin(pb: &mut PluginBuilder) {
-        pb
-            .component::<Event>()
-            .sys(remove_events)
-        ;
+        pb.component::<Event>().sys(remove_events);
     }
 }
-

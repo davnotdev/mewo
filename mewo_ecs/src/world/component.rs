@@ -1,11 +1,11 @@
+use std::any::TypeId;
+use std::collections::HashMap;
+use crate::SparseSet;
 use crate::error::{ 
     Result, 
     ECSError, 
     ComponentErrorIdentifier 
 };
-use std::any::TypeId;
-use std::collections::HashMap;
-use sparseset::SparseSet;
 use super::storage::BoxedStorage;
 
 pub trait Component {
@@ -22,7 +22,7 @@ pub struct ComponentManager {
 impl ComponentManager {
     pub fn create() -> ComponentManager {
         ComponentManager {
-            storages: SparseSet::with_capacity(COMPONENT_MANAGER_STORAGE_RESERVE_COUNT),
+            storages: SparseSet::create_with_capacity(COMPONENT_MANAGER_STORAGE_RESERVE_COUNT),
             component_types: HashMap::new(),
         }
     } 

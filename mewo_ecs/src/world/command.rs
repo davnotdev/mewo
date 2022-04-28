@@ -1,91 +1,72 @@
 use super::entity::{
-    Entity,
-    EntityModifier,
-    EntityModifierStore,
-    EntityModifierHandle,
+    BoxedEntityModifyCallback, Entity, EntityModifyCallback, EntityModifyHandle, EntityWrapper,
 };
-use super::resource::{
-    ResourceManager,
-    ResourceModifyCallback,
-    BoxedResourceModifyCallback,
-};
-use super::World;
+use super::resource::{BoxedResourceModifyCallback, ResourceManager, ResourceModifyCallback};
 
-const COMMAND_ENTITY_MOD_RESERVE_CONST: usize = 16;
+const COMMAND_ENTITY_SPAWN_RESERVE_CONST: usize = 16;
 const COMMAND_ENTITY_REMOVE_RESERVE_CONST: usize = 16;
 const COMMAND_RESOURCE_MODIFY_RESERVE_CONST: usize = 16;
 
-pub struct WorldCommandsStore {
+pub struct WorldCommands {
+    pub entity_cmds: Vec<(EntityModifyHandle, Option<BoxedEntityModifyCallback>)>,
     pub entity_removes: Vec<Entity>,
-    pub entity_cmds: Vec<EntityModifierStore>,
     pub resource_modifies: Vec<BoxedResourceModifyCallback>,
 }
 
-impl WorldCommandsStore {
+impl WorldCommands {
     pub fn create() -> Self {
-        WorldCommandsStore {
-            entity_cmds: Vec::with_capacity(COMMAND_ENTITY_MOD_RESERVE_CONST),
-            resource_modifies: Vec::with_capacity(COMMAND_RESOURCE_MODIFY_RESERVE_CONST),
+        WorldCommands {
+            entity_cmds: Vec::with_capacity(COMMAND_ENTITY_SPAWN_RESERVE_CONST),
             entity_removes: Vec::with_capacity(COMMAND_ENTITY_REMOVE_RESERVE_CONST),
-        } 
+            resource_modifies: Vec::with_capacity(COMMAND_RESOURCE_MODIFY_RESERVE_CONST),
+        }
     }
 
-    pub fn modify<'world, 'store>(&'store mut self, world: &'world World) -> WorldCommands<'world, 'store> {
-        WorldCommands {
-            world,
-            entity_cmds: &mut self.entity_cmds,
-            resource_modifies: &mut self.resource_modifies,
-            entity_removes: &mut self.entity_removes,
+    pub fn spawn_entity<F>(&mut self, callback: Option<F>)
+    where
+        F: 'static + Fn(&mut EntityWrapper),
+    {
+        if let Some(callback) = callback {
+            self.entity_cmds.push((
+                EntityModifyHandle::Spawn,
+                Some(Box::new(EntityModifyCallback(callback))),
+            ))
+        } else {
+            self.entity_cmds.push((EntityModifyHandle::Spawn, None));
         }
+    }
+
+    pub fn modify_entity<F>(&mut self, entity: Entity, callback: F)
+    where
+        F: 'static + Fn(&mut EntityWrapper),
+    {
+        self.entity_cmds.push((
+            EntityModifyHandle::Entity(entity),
+            Some(Box::new(EntityModifyCallback(callback))),
+        ));
+    }
+
+    pub fn remove_entity(&mut self, entity: Entity) {
+        self.entity_removes.push(entity);
+    }
+
+    pub fn modify_resources<F>(&mut self, callback: F)
+    where
+        F: 'static + Fn(&mut ResourceManager) -> (),
+    {
+        self.resource_modifies
+            .push(Box::new(ResourceModifyCallback(callback)));
     }
 
     pub fn flush(&mut self) {
         self.entity_cmds.clear();
+        self.entity_removes.clear();
         self.resource_modifies.clear();
-        self.entity_removes.clear()
     }
 
     pub fn merge(&mut self, mut other: Self) {
         self.entity_cmds.append(&mut other.entity_cmds);
-        self.resource_modifies.append(&mut other.resource_modifies);
         self.entity_removes.append(&mut other.entity_removes);
+        self.resource_modifies.append(&mut other.resource_modifies);
     }
 }
-
-pub struct WorldCommands<'world, 'store> {
-    world: &'world World,
-    entity_cmds: &'store mut Vec<EntityModifierStore>,
-    resource_modifies: &'store mut Vec<BoxedResourceModifyCallback>,
-    entity_removes: &'store mut Vec<Entity>,
-}
-
-impl<'world, 'store> WorldCommands<'world, 'store> {
-    pub fn modify_entity(&mut self, entity: Entity) -> EntityModifier {
-        let store = EntityModifierStore::create(EntityModifierHandle::Modify(entity), self.world);
-        self.entity_cmds.push(store);
-        let len = self.entity_cmds.len()-1;
-        let store = self.entity_cmds.get_mut(len).unwrap();
-        let modifier = store.modify(self.world);
-        modifier
-    }
-
-    pub fn spawn_entity(&mut self) -> EntityModifier {
-        let store = EntityModifierStore::create(EntityModifierHandle::Spawn, self.world);
-        self.entity_cmds.push(store);
-        let len = self.entity_cmds.len()-1;
-        let store = self.entity_cmds.get_mut(len).unwrap();
-        let modifier = store.modify(self.world);
-        modifier
-    }
-
-    pub fn remove_entity(&mut self, e: Entity) {
-        self.entity_removes.push(e);
-    }
-
-    pub fn modify_resources<F>(&mut self, callback: F)  
-        where F: 'static + Fn(&mut ResourceManager) -> ()
-    {
-        self.resource_modifies.push(Box::new(ResourceModifyCallback(callback)));
-    }
-}
-

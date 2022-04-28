@@ -1,55 +1,47 @@
-use sparseset::SparseSet;
-use std::collections::HashMap;
-use std::marker::PhantomData;
-use std::iter::Iterator;
-use std::any::TypeId;
-use super::wish::{
-    WishArg,
-    WishType,
-};
-use super::component::{
-    ComponentManager,
-    ComponentTypeId,
-};
-use super::component_stamp::ComponentStamp;
-use super::resource::ResourceManager;
 use super::command::WorldCommands;
+use super::component_stamp::ComponentStamp;
 use super::entity::Entity;
-use super::mask::BoolMask;
+use super::resource::ResourceManager;
+use super::wish::WishData;
+use super::wish::{Wish, WishFilters, WishTypes};
 use super::world::World;
+use crate::error::Result;
 
-#[derive(Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum ComponentAccessMode {
     Read,
     Write,
 }
 
-pub struct SystemArgs<'rmgr, 'world, 'cmds> {
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum FilterMode {
+    With,
+    Without,
+}
+
+pub struct SystemArgs<'rmgr, 'cmds> {
     pub rmgr: &'rmgr ResourceManager,
-    pub cmds: WorldCommands<'world, 'cmds>,
+    pub cmds: &'cmds mut WorldCommands,
 }
 
-pub type SystemCallback<Q> = fn (Wish<Q>, SystemArgs);
-pub struct System<Q: WishArg>(pub SystemCallback<Q>);
-pub type BoxedSystem = Box<dyn GenericSystem>;
-
-pub trait GenericSystem {
-    fn call(&self, wish: &WishInstance, args: SystemArgs);
+pub type BoxedSystem = Box<dyn UntypedSystemCallback>;
+pub trait UntypedSystemCallback {
+    fn call(&self, world: &World, cmds: &mut WorldCommands, sets: &SystemDataSetInstance);
 }
 
-impl<Q> System<Q> 
-    where Q: WishArg
+pub type SystemCallback<WT, WF> = fn(&mut SystemArgs, Wish<WT, WF>);
+
+impl<WT, WF> UntypedSystemCallback for SystemCallback<WT, WF>
+where
+    WT: WishTypes,
+    WF: WishFilters,
 {
-    pub fn get_wish_info(&self) -> Vec<WishType> {
-        Q::get_types()
-    }
-}
-
-impl<Q> GenericSystem for System<Q> 
-    where Q: WishArg
-{
-    fn call(&self, wish: &WishInstance, args: SystemArgs) {
-        (self.0)(Wish::instance_from(wish), args)
+    fn call(&self, world: &World, cmds: &mut WorldCommands, set: &SystemDataSetInstance) {
+        let mut args = SystemArgs {
+            cmds,
+                rmgr: world.get_resource_manager(),
+            };
+        (self)(&mut args, Wish::<WT, WF>::create(world, set))
     }
 }
 
@@ -58,375 +50,119 @@ pub struct SystemFilter {
     pub without: Option<ComponentStamp>,
 }
 
-pub struct SystemData {
-    pub reads: Vec<(ComponentTypeId, SystemFilter)>,
-    pub writes: Vec<(ComponentTypeId, SystemFilter)>,
+pub struct SystemDataSet {
+    pub total_withs: ComponentStamp,
+    pub reads: ComponentStamp,
+    pub writes: ComponentStamp,
+    pub filter: SystemFilter,
 }
 
-impl SystemData {
-    pub fn from_query_type(world: &World, qts: &Vec<WishType>) -> SystemData {
-        let component_manager = world.get_component_manager();
-        let mut data = SystemData {
-            reads: Vec::new(),
-            writes: Vec::new(),
-        };
-        for qt in qts.iter() {
-            let mut filter = SystemFilter {
-                with: None,
-                without: None,
+impl SystemDataSet {
+    pub fn from_wish_data(world: &World, data: &WishData) -> Result<Self> {
+        let component_mgr = world.get_component_manager();
+        let mut reads = ComponentStamp::create(world);
+        let mut writes = ComponentStamp::create(world);
+        for (ty, access) in data.tyids.iter() {
+            let id = component_mgr.get_component_id(*ty)?;
+            match access {
+                ComponentAccessMode::Read => reads.stamp(id)?,
+                ComponentAccessMode::Write => writes.stamp(id)?,
             };
-            if let Some(withs) = &qt.with {
-                let mut with_stamp = ComponentStamp::create(world);
-                for with in withs.iter() {
-                    with_stamp.stamp(component_manager.get_component_id(*with).unwrap());
-                }
-                filter.with = Some(with_stamp);
-            }
-            if let Some(withouts) = &qt.without {
-                let mut without_stamp = ComponentStamp::create(world);
-                for without in withouts.iter() {
-                    without_stamp.stamp(component_manager.get_component_id(*without).unwrap());
-                }
-                filter.without = Some(without_stamp);
-            }
-            let id = component_manager.get_component_id(qt.tyid).unwrap();
-            match qt.access_mode {
-                ComponentAccessMode::Read => data.reads.push((id, filter)),
-                ComponentAccessMode::Write => data.writes.push((id, filter)),
-            }
-        };
-        data
-    }
-}
-
-pub struct Wish<'wish, 'global, Q> 
-    where Q: WishArg
-{
-    q: PhantomData<Q>,
-    wish: &'wish WishInstance<'wish, 'global>,
-}
-
-impl<'wish, 'global, Q> Wish<'wish, 'global, Q> 
-    where Q: WishArg
-{
-    pub fn instance_from(wish: &'wish WishInstance<'wish, 'global>) -> Self {
-        Wish {
-            wish,
-            q: PhantomData,
         }
-    }
-
-    pub fn write<C>(&self) -> GiftInstanceWriteIter<'wish, 'global, C>
-        where C: 'static
-    {
-        self.wish.write::<C>() 
-    }
-
-    pub fn read<C>(&self) -> GiftInstanceReadIter<'wish, 'global, C>
-        where C: 'static
-    {
-        self.wish.read::<C>() 
-    }
-}
-
-//  *const () points to `data: Vec<C>`
-type UnsafeComponentSlice = *const ();
-type UnsafeEntitySlice = *const Vec<Entity>;
-
-pub enum ComponentIndexBuffer {
-    All,
-    Include(BoolMask),
-}
-
-pub struct GlobalWish {
-    data: SparseSet<(UnsafeComponentSlice, UnsafeEntitySlice)>,
-    component_types: HashMap<TypeId, ComponentTypeId>,
-}
-
-impl GlobalWish {
-    pub fn create(component_mgr: &ComponentManager) -> GlobalWish {
-        let data = SparseSet::with_capacity(component_mgr.get_component_type_count());
-        let component_types = (*component_mgr.get_component_types()).clone();
-        GlobalWish {
-            data, component_types,
+        let mut with = ComponentStamp::create(world);
+        let mut without = ComponentStamp::create(world);
+        for (ty, filter) in data.filters.iter() {
+            let id = component_mgr.get_component_id(*ty)?;
+            match filter {
+                FilterMode::With => with.stamp(id)?,
+                FilterMode::Without => without.stamp(id)?,
+            };
         }
-    }
-
-    pub fn recreate_slices(&mut self, component_mgr: &ComponentManager) {
-        self.component_types = (*component_mgr.get_component_types()).clone();
-        self.data.clear();
-        for cty in self.component_types.values() {
-            let cty = *cty;
-            let storage = component_mgr
-                .get_boxed_storage(cty)
-                .unwrap()
-                .get_untyped_storage();
-            self.data.insert(cty, (storage.get_data_ptr(), storage.get_entities() as *const Vec<Entity>));
-        }
-        
-    }
-}
-
-pub struct SystemWish {
-    index_buf: SparseSet<(ComponentAccessMode, ComponentIndexBuffer)>, 
-}
-
-impl SystemWish {
-    pub fn create(world: &World, global_wish: &GlobalWish, sys_data: &SystemData) -> Self {
-        let mut ret = SystemWish {
-            index_buf: SparseSet::with_capacity(global_wish.data.capacity()),
-        };
-        ret.update_index_buf(world, sys_data);
-        ret
-    }
-
-    pub fn update_index_buf(&mut self, world: &World, sys_data: &SystemData) {
-        self.index_buf.clear();
-        for (access, data) in [
-            (ComponentAccessMode::Read, sys_data.reads.iter()),
-            (ComponentAccessMode::Write, sys_data.writes.iter()), 
-        ] {
-            for (id, filter) in data {
-                if let (None, None) = (&filter.with, &filter.without) {
-                    self.index_buf.insert(*id, (access, ComponentIndexBuffer::All));
-                } else {
-                    let mut index_mask = BoolMask::create();
-                    if let Some(with) = &filter.with {
-                        for (i, e) in world
-                            .get_component_manager()
-                            .get_boxed_storage(*id)
-                            .unwrap()
-                            .get_untyped_storage()
-                            .get_entities()
-                            .iter()
-                            .enumerate()
-                        {
-                            let dep_info = world.get_entity_dep_info(*e)
-                                .unwrap();
-                            if dep_info.bitwise_and(&with).compare(&with) {
-                                index_mask.set(i, true).unwrap();
-                            }
-                        }
-                    }
-                    if let Some(without) = &filter.without {
-                        for (i, e) in world
-                            .get_component_manager()
-                            .get_boxed_storage(*id)
-                            .unwrap()
-                            .get_untyped_storage()
-                            .get_entities()
-                            .iter()
-                            .enumerate()
-                        {
-                            let dep_info = world.get_entity_dep_info(*e)
-                                .unwrap();
-                            if !dep_info.bitwise_and(&without).compare(&without) {
-                                index_mask.set(i, true).unwrap();
-                            }
-                        }
-                    }
-                    self.index_buf.insert(*id, (access, ComponentIndexBuffer::Include(index_mask)));
-                }
-            }
-        }
-    }
-}
-
-pub struct WishInstance<'wish, 'global> {
-    sys_wish: &'wish SystemWish,
-    global_wish: &'global GlobalWish,
-}
-
-impl<'wish, 'global> WishInstance<'wish, 'global> {
-    pub fn create(sys_wish: &'wish SystemWish, global_wish: &'global GlobalWish) -> Self {
-        WishInstance {
-            sys_wish, global_wish,
-        } 
-    }
-
-    pub fn write<C>(&self) -> GiftInstanceWriteIter<'wish, 'global, C>
-        where C: 'static
-    {
-        let id = *self.global_wish.component_types.get(&TypeId::of::<C>())
-            .unwrap();
-        let (mode, indices) = self.sys_wish.index_buf.get(id)
-            .unwrap();
-        if *mode != ComponentAccessMode::Write {
-            panic!("replace this later")
-        }
-        let (cdata, edata) = *self.global_wish.data.get(id)
-            .unwrap();
-        let (storage, entities) = unsafe {
-            (
-                &mut *std::mem::transmute::<UnsafeComponentSlice, *mut Vec<C>>(cdata),
-                &*edata
-            )
-        };
-        GiftInstanceWriteIter {
-            indices, 
-            storage, 
-            entities, 
-            index: 0,
-        }
-    }
-
-    pub fn read<C>(&self) -> GiftInstanceReadIter<'wish, 'global, C>
-        where C: 'static
-    {
-        let id = *self.global_wish.component_types.get(&TypeId::of::<C>())
-            .unwrap();
-        let (mode, indices) = self.sys_wish.index_buf.get(id)
-            .unwrap();
-        if *mode != ComponentAccessMode::Read {
-            panic!("replace this later")
-        }
-        let (cdata, edata) = *self.global_wish.data.get(id)
-            .unwrap();
-        let (storage, entities) = unsafe {
-            (
-                &*std::mem::transmute::<UnsafeComponentSlice, *const Vec<C>>(cdata),
-                &*edata
-            )
-        };
-        GiftInstanceReadIter {
-            indices, 
-            storage, 
-            entities, 
-            index: 0,
-        }
-    }
-}
-
-pub struct GiftInstanceWriteIter<'wish, 'global, C> {
-    indices: &'wish ComponentIndexBuffer,
-    storage: &'global mut Vec<C>,
-    entities: &'global Vec<Entity>,
-    index: usize,
-}
-
-pub struct GiftInstanceReadIter<'wish, 'global, C> {
-    indices: &'wish ComponentIndexBuffer,
-    storage: &'global Vec<C>,
-    entities: &'global Vec<Entity>,
-    index: usize,
-}
-
-impl<'wish, 'global, C> Iterator for GiftInstanceWriteIter<'wish, 'global, C> {
-    type Item = (&'global mut C, Entity);
-    fn next(&mut self) -> Option<Self::Item> {
-        match self.indices {
-            ComponentIndexBuffer::All => {
-                if let Some(e) = self.entities.get(self.index) {
-                    let retc = unsafe {
-                        &mut *self.storage.as_mut_ptr().offset(self.index as isize)
-                    };
-                    let ret = Some((retc, *e));
-                    self.index += 1;
-                    ret
-                } else {
+        let mut total_withs = reads.clone();
+        total_withs.merge(&writes)?;
+        total_withs.merge(&with)?;
+        Ok(SystemDataSet {
+            total_withs,
+            reads,
+            writes,
+            filter: SystemFilter {
+                with: if with.is_empty() { None } else { Some(with) },
+                without: if without.is_empty() {
                     None
-                }
-            },
-            ComponentIndexBuffer::Include(mask) => {
-                while let Ok(b) = mask.get(self.index) {
-                    if b {
-                        if let Some(e) = self.entities.get(self.index) {
-                            let retc = unsafe {
-                                &mut *self.storage.as_mut_ptr().offset(self.index as isize)
-                            };
-                            let ret = Some((retc, *e));
-                            self.index += 1;
-                            return ret
-                        } else {
-                            unreachable!()
-                        }
-                    }
-                    self.index += 1;
-                }
-                None
-            },
-        } 
-    }
-}
-
-impl<'wish, 'global, C> Iterator for GiftInstanceReadIter<'wish, 'global, C> {
-    type Item = (&'global C, Entity);
-    fn next(&mut self) -> Option<Self::Item> {
-        match self.indices {
-            ComponentIndexBuffer::All => {
-                if let Some(e) = self.entities.get(self.index) {
-                    let ret = Some((&self.storage.as_slice()[self.index], *e));
-                    self.index += 1;
-                    ret
                 } else {
-                    None
-                }
+                    Some(without)
+                },
             },
-            ComponentIndexBuffer::Include(mask) => {
-                while let Ok(b) = mask.get(self.index) {
-                    if b {
-                        if let Some(e) = self.entities.get(self.index) {
-                            let ret = Some((&self.storage.as_slice()[self.index], *e));
-                            self.index += 1;
-                            return ret
-                        } else {
-                            unreachable!()
-                        }
-                    }
-                    self.index += 1;
-                }
-                None
-            },
-        } 
+        })
+    }
+
+    pub fn match_entity(&self, world: &World, entity: Entity) -> Result<bool> {
+        let dep_info = world.get_entity_dep_info(entity)?;
+        Ok(ComponentStamp::system_match(
+            dep_info,
+            &self.total_withs,
+            &self.filter.without,
+        ))
     }
 }
 
-#[test]
-fn test_wish() {
-    use crate::{
-        Component, 
-        EntityModifierStore,
-        EntityModifierHandle,
-    };
-    #[derive(Debug, Clone, PartialEq, Eq)]
-    struct SomeWrite {
-        val: u32,
-    }
-    impl Component for SomeWrite {}
+pub struct SystemDataSetInstance {
+    pub entities: Vec<Entity>,
+}
 
-    let mut world = World::create();
-    world
-        .get_mut_component_manager()
-        .register_component_type::<SomeWrite>()
-        .unwrap();
-    let mut entity_mod_store = EntityModifierStore::create(EntityModifierHandle::Spawn, &world);
-    let mut entity_mod = entity_mod_store.modify(&world);
-    entity_mod.insert_component(SomeWrite { val: 2 });
-    world.modify_entity(&mut entity_mod_store).unwrap();
-    let mut global_wish = GlobalWish::create(world.get_component_manager());
-    global_wish.recreate_slices(world.get_component_manager());
-    let sys = |wish: &mut WishInstance| {
-        for (data, _e) in wish.write::<SomeWrite>() {
-            data.val += 10; 
+impl SystemDataSetInstance {
+    pub fn create(world: &World, data: &SystemDataSet) -> Result<Self> {
+        let mut inst = SystemDataSetInstance {
+            entities: Vec::new(),
+        };
+        let entity_mgr = world.get_entity_manager();
+        for ei in 0..entity_mgr.get_entity_count() {
+            let entity = Entity::from_index(ei);
+            if entity_mgr.entity_exists(entity) {
+                if data.match_entity(world, entity)? {
+                    inst.entities.push(entity);
+                }
+            }
         }
-    };
-    let sys_data = SystemData {
-        reads: vec![],
-        writes: vec![(0, SystemFilter { with: None, without: None })],
-    };
-    let wish = SystemWish::create(&world, &global_wish, &sys_data);
-    let mut wish_inst = WishInstance::create(&wish, &global_wish);
-    (sys)(&mut wish_inst);
-    assert_eq!(
-        world
-            .get_component_manager()
-            .get_boxed_storage_of::<SomeWrite>()
-            .unwrap()
-            .get_storage::<SomeWrite>()
-            .unwrap()
-            .get_component_with_entity_of(Entity::from_id(0))
-            .unwrap(),
-        &SomeWrite { val: 2 + 10 }
-    );
+        Ok(inst)
+    }
+
+    pub fn any_entity_modify(&mut self, world: &World, data: &SystemDataSet, entity: Entity) {
+        if data.match_entity(world, entity).unwrap() {
+            if !self.entities.contains(&entity) {
+                self.entities.push(entity);
+            }
+        }
+    }
+
+    pub fn any_entity_remove(&mut self, entity: Entity) {
+        for (i, self_entity) in self.entities.iter().enumerate() {
+            if *self_entity == entity {
+                self.entities.remove(i);
+                break;
+            }
+        }
+    }
 }
 
+pub struct SystemBuilder(Vec<(BoxedSystem, SystemDataSet)>);
+
+impl SystemBuilder {
+    pub fn create() -> Self {
+        SystemBuilder(Vec::new())
+    }
+
+    pub fn sys<WT, WF>(&mut self, world: &World, callback: SystemCallback<WT, WF>) -> &mut Self
+    where
+        WT: 'static + WishTypes,
+        WF: 'static + WishFilters,
+    {
+        let data = SystemDataSet::from_wish_data(world, &Wish::<WT, WF>::get_wish_data()).unwrap();
+        self.0.push((Box::new(callback), data));
+        self
+    }
+
+    pub fn consume(self) -> Vec<(BoxedSystem, SystemDataSet)> {
+        self.0
+    }
+}
