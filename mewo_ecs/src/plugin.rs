@@ -19,12 +19,11 @@ impl<'world> PluginBuilder<'world> {
         }
     }
 
-    pub fn sys<WT, WF>(&mut self, system: SystemCallback<WT, WF>) -> &mut Self
+    pub fn sys<WS>(&mut self, system: SystemFunction<WS>) -> &mut Self
     where
-        WT: 'static + WishTypes,
-        WF: 'static + WishFilters,
+        WS: 'static + Wishes,
     {
-        self.system_builder.sys::<WT, WF>(self.world, system);
+        self.system_builder.sys(self.world, system);
         self
     }
 

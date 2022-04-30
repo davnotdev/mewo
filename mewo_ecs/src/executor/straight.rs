@@ -2,17 +2,21 @@ use super::*;
 
 pub struct StraightExecutor {
     commands: WorldCommands,
-    systems: Vec<(BoxedSystem, SystemDataSet, SystemDataSetInstance)>,
+    systems: Vec<(BoxedSystem, Vec<SystemDataSet>, Vec<SystemDataSetInstance>)>,
 }
 
 impl Executor for StraightExecutor {
-    fn create(world: &World, systems: Vec<(BoxedSystem, SystemDataSet)>) -> Self {
+    fn create(world: &World, systems: Vec<(BoxedSystem, Vec<SystemDataSet>)>) -> Self {
         StraightExecutor {
             systems: {
                 let mut self_systems = Vec::with_capacity(systems.len());
-                for (sys, data) in systems.into_iter() {
-                    let set = SystemDataSetInstance::create(world, &data).unwrap();
-                    self_systems.push((sys, data, set));
+                for (sys, sets) in systems.into_iter() {
+                    let mut insts = Vec::new();
+                    for data in sets.iter() {
+                        let inst = SystemDataSetInstance::create(world, &data).unwrap();
+                        insts.push(inst);
+                    }
+                    self_systems.push((sys, sets, insts));
                 }
                 self_systems
             },
@@ -21,8 +25,8 @@ impl Executor for StraightExecutor {
     }
 
     fn run_systems(&mut self, world: &mut World) {
-        for (sys, _data, set) in self.systems.iter() {
-            sys.call(world, &mut self.commands, set);
+        for (sys, _sets, insts) in self.systems.iter() {
+            sys.call(world, &mut self.commands, insts);
         }
     }
 
@@ -35,13 +39,17 @@ impl Executor for StraightExecutor {
             if let Some(callback) = callback {
                 callback.call(e, world);
             };
-            for (_sys, data, set) in self.systems.iter_mut() {
-                set.any_entity_modify(&world, data, e);
+            for (_sys, sets, insts) in self.systems.iter_mut() {
+                for (inst, data) in insts.iter_mut().zip(sets.iter()) {
+                    inst.any_entity_modify(&world, &data, e);
+                }
             }
         }
         for e in self.commands.entity_removes.iter() {
-            for (_sys, _data, set) in self.systems.iter_mut() {
-                set.any_entity_remove(*e);
+            for (_sys, _sets, insts) in self.systems.iter_mut() {
+                for inst in insts {
+                    inst.any_entity_remove(*e);
+                }
             }
             world.remove_entity(*e).unwrap();
         }
@@ -64,7 +72,7 @@ impl Executor for StraightExecutor {
 //  e2: (1, 0, 0)
 #[test]
 fn test_straight_executor() {
-    use crate::{Component, EntityWrapper, SystemBuilder, Wish, With, Without, R, W};
+    use crate::{Component, EntityWrapper, SystemBuilder, Wish, With, Without};
     #[derive(Debug, Clone, PartialEq)]
     struct Data(usize, usize, usize);
     impl Component for Data {}
@@ -85,23 +93,33 @@ fn test_straight_executor() {
         .register_component_type::<WithoutComponent>()
         .unwrap();
 
-    fn sysall(q: Wish<W<Data>, ()>) {
-        for (_e, mut data) in q.iter() {
+    fn sysall(_args: &mut SystemArgs, q: Wish<&mut Data, ()>) {
+        for mut data in q.iter() {
             data.0 += 1;
         }
     }
-    fn syswith(q: Wish<W<Data>, With<WithComponent>>) {
-        for (_e, mut data) in q.iter() {
+    fn syswith(_args: &mut SystemArgs, q: Wish<&mut Data, With<WithComponent>>) {
+        for mut data in q.iter() {
             data.1 += 1;
         }
     }
-    fn syswithout(q: Wish<W<Data>, Without<WithoutComponent>>) {
-        for (_e, mut data) in q.iter() {
+    fn syswithout(_args: &mut SystemArgs, q: Wish<&mut Data, Without<WithoutComponent>>) {
+        for (_e, mut data) in q.eiter() {
             data.2 += 1;
         }
     }
-    fn _syscompiletest(q: Wish<(W<Data>, R<WithComponent>), ()>) {
-        for (_e, (_data, _with)) in q.iter() {}
+
+    //  *shocked pikachu* they compile...
+    fn syscompiletest0(_args: &mut SystemArgs, q: Wish<(&mut Data, &WithComponent), ()>) {
+        for (_data, _with) in q.iter() {}
+    }
+    fn syscompiletest1(
+        _args: &mut SystemArgs,
+        q: (Wish<&mut Data, ()>, Wish<&mut WithComponent, ()>),
+    ) {
+        let (datas, withs) = q;
+        for (_e, _data) in datas.eiter() {}
+        for (_e, _with) in withs.eiter() {}
     }
 
     let e = world.insert_entity();
@@ -120,7 +138,9 @@ fn test_straight_executor() {
     systems
         .sys(&world, sysall)
         .sys(&world, syswith)
-        .sys(&world, syswithout);
+        .sys(&world, syswithout)
+        .sys(&world, syscompiletest0)
+        .sys(&world, syscompiletest1);
     let mut exec = StraightExecutor::create(&world, systems.consume());
     exec.run_systems(&mut world);
 

@@ -1,11 +1,84 @@
 #![allow(unused_parens)]
 use super::entity::Entity;
-use super::system::{ComponentAccessMode, FilterMode};
+use super::system::{ComponentAccessMode, FilterMode, SystemDataSetInstance};
 use super::wish::*;
 use super::world::World;
 use std::any::TypeId;
 
 //  TODO: use macros silly!
+
+//  Wishes
+
+impl Wishes for () {
+    fn create(_world: *const World, _set_insts: *const Vec<SystemDataSetInstance>) -> Self {
+        ()
+    }
+    fn get_wish_datas() -> Vec<WishData> {
+        Vec::new()
+    }
+}
+
+impl<WT0, WF0> Wishes for (Wish<WT0, WF0>)
+where
+    WT0: WishTypes,
+    WF0: WishFilters,
+{
+    fn create(world: *const World, set_insts: *const Vec<SystemDataSetInstance>) -> Self {
+        let set_insts = unsafe { set_insts.as_ref().unwrap() };
+        (Wish::<WT0, WF0>::create(world, set_insts.get(0).unwrap()))
+    }
+    fn get_wish_datas() -> Vec<WishData> {
+        vec![Wish::<WT0, WF0>::get_wish_data()]
+    }
+}
+
+impl<WT0, WF0, WT1, WF1> Wishes for (Wish<WT0, WF0>, Wish<WT1, WF1>)
+where
+    WT0: WishTypes,
+    WF0: WishFilters,
+    WT1: WishTypes,
+    WF1: WishFilters,
+{
+    fn create(world: *const World, set_insts: *const Vec<SystemDataSetInstance>) -> Self {
+        let set_insts = unsafe { set_insts.as_ref().unwrap() };
+        (
+            Wish::create(world, set_insts.get(0).unwrap()),
+            Wish::create(world, set_insts.get(1).unwrap()),
+        )
+    }
+    fn get_wish_datas() -> Vec<WishData> {
+        vec![
+            Wish::<WT0, WF0>::get_wish_data(),
+            Wish::<WT1, WF1>::get_wish_data(),
+        ]
+    }
+}
+
+impl<WT0, WF0, WT1, WF1, WT2, WF2> Wishes for (Wish<WT0, WF0>, Wish<WT1, WF1>, Wish<WT2, WF2>)
+where
+    WT0: WishTypes,
+    WF0: WishFilters,
+    WT1: WishTypes,
+    WF1: WishFilters,
+    WT2: WishTypes,
+    WF2: WishFilters,
+{
+    fn create(world: *const World, set_insts: *const Vec<SystemDataSetInstance>) -> Self {
+        let set_insts = unsafe { set_insts.as_ref().unwrap() };
+        (
+            Wish::create(world, set_insts.get(0).unwrap()),
+            Wish::create(world, set_insts.get(1).unwrap()),
+            Wish::create(world, set_insts.get(2).unwrap()),
+        )
+    }
+    fn get_wish_datas() -> Vec<WishData> {
+        vec![
+            Wish::<WT0, WF0>::get_wish_data(),
+            Wish::<WT1, WF1>::get_wish_data(),
+            Wish::<WT2, WF2>::get_wish_data(),
+        ]
+    }
+}
 
 //  WishTypes
 

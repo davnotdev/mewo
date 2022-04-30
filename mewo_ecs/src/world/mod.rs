@@ -24,8 +24,10 @@ pub use resource::{
     ResourceModifyCallback,
 };
 pub use system::{
-    BoxedSystem, ComponentAccessMode, FilterMode, SystemArgs, SystemBuilder,
-    SystemCallback, SystemDataSet, SystemDataSetInstance, SystemFilter, UntypedSystemCallback,
+    BoxedSystem, ComponentAccessMode, FilterMode, SystemArgs, SystemBuilder, SystemDataSet,
+    SystemDataSetInstance, SystemFilter, SystemFunction, UntypedSystemCallback,
 };
-pub use wish::{Wish, WishFilter, WishFilters, WishIter, WishType, WishTypes, With, Without, R, W};
+pub use wish::{
+    Wish, WishEIter, WishFilter, WishFilters, WishIter, WishType, WishTypes, Wishes, With, Without,
+};
 pub use world::World;

@@ -1,4 +1,4 @@
-use crate::{Component, EntityWrapper, SystemDataSet, Wish, With, Without, World, R, W};
+use crate::{Component, EntityWrapper, SystemDataSet, Wish, With, Without, World};
 
 struct ReadComponent;
 impl Component for ReadComponent {}
@@ -32,7 +32,7 @@ fn test_filter_single() {
     EntityWrapper::from_entity(e2, &mut mock_world).insert_component(WriteComponent);
 
     let system_data_set =
-        SystemDataSet::from_wish_data(&mock_world, &Wish::<R<ReadComponent>, ()>::get_wish_data())
+        SystemDataSet::from_wish_data(&mock_world, &Wish::<&ReadComponent, ()>::get_wish_data())
             .unwrap();
     assert_eq!(system_data_set.match_entity(&mock_world, e0), Ok(true));
     assert_eq!(system_data_set.match_entity(&mock_world, e1), Ok(true));
@@ -67,7 +67,7 @@ fn test_filter_multi() {
 
     let system_data_set = SystemDataSet::from_wish_data(
         &mock_world,
-        &Wish::<(R<ReadComponent>, W<WriteComponent>), ()>::get_wish_data(),
+        &Wish::<(&ReadComponent, &mut WriteComponent), ()>::get_wish_data(),
     )
     .unwrap();
     assert_eq!(system_data_set.match_entity(&mock_world, e0), Ok(false));
@@ -125,7 +125,7 @@ fn test_filter_multi_with_without() {
     let system_data_set = SystemDataSet::from_wish_data(
         &mock_world,
         &Wish::<
-            (R<ReadComponent>, W<WriteComponent>),
+            (&ReadComponent, &mut WriteComponent),
             (With<WithComponent>, Without<WithoutComponent>),
         >::get_wish_data(),
     )

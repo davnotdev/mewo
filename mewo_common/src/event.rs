@@ -4,7 +4,7 @@ pub struct Event;
 impl Component for Event {}
 
 fn remove_events(args: &mut SystemArgs, w: Wish<(), With<Event>>) {
-    for (e, _event) in w.iter() {
+    for (e, _event) in w.eiter() {
         args.cmds.remove_entity(e);
     }
 }

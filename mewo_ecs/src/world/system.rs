@@ -3,7 +3,7 @@ use super::component_stamp::ComponentStamp;
 use super::entity::Entity;
 use super::resource::ResourceManager;
 use super::wish::WishData;
-use super::wish::{Wish, WishFilters, WishTypes};
+use super::wish::Wishes;
 use super::world::World;
 use crate::error::Result;
 
@@ -24,24 +24,34 @@ pub struct SystemArgs<'rmgr, 'cmds> {
     pub cmds: &'cmds mut WorldCommands,
 }
 
+pub type SystemFunction<WS> = fn(&mut SystemArgs, WS);
+
 pub type BoxedSystem = Box<dyn UntypedSystemCallback>;
 pub trait UntypedSystemCallback {
-    fn call(&self, world: &World, cmds: &mut WorldCommands, sets: &SystemDataSetInstance);
+    fn get_wish_datas(&self) -> Vec<WishData>;
+    fn call(&self, world: &World, cmds: &mut WorldCommands, sets: &Vec<SystemDataSetInstance>);
 }
 
-pub type SystemCallback<WT, WF> = fn(&mut SystemArgs, Wish<WT, WF>);
-
-impl<WT, WF> UntypedSystemCallback for SystemCallback<WT, WF>
+impl<WS> UntypedSystemCallback for SystemFunction<WS>
 where
-    WT: WishTypes,
-    WF: WishFilters,
+    WS: Wishes,
 {
-    fn call(&self, world: &World, cmds: &mut WorldCommands, set: &SystemDataSetInstance) {
+    fn get_wish_datas(&self) -> Vec<WishData> {
+        WS::get_wish_datas()
+    }
+
+    fn call(&self, world: &World, cmds: &mut WorldCommands, set: &Vec<SystemDataSetInstance>) {
         let mut args = SystemArgs {
             cmds,
-                rmgr: world.get_resource_manager(),
-            };
-        (self)(&mut args, Wish::<WT, WF>::create(world, set))
+            rmgr: world.get_resource_manager(),
+        };
+        (self)(
+            &mut args,
+            WS::create(
+                world as *const World,
+                set as *const Vec<SystemDataSetInstance>,
+            ),
+        )
     }
 }
 
@@ -145,24 +155,28 @@ impl SystemDataSetInstance {
     }
 }
 
-pub struct SystemBuilder(Vec<(BoxedSystem, SystemDataSet)>);
+pub struct SystemBuilder(Vec<(BoxedSystem, Vec<SystemDataSet>)>);
 
 impl SystemBuilder {
     pub fn create() -> Self {
         SystemBuilder(Vec::new())
     }
 
-    pub fn sys<WT, WF>(&mut self, world: &World, callback: SystemCallback<WT, WF>) -> &mut Self
+    pub fn sys<WS>(&mut self, world: &World, callback: SystemFunction<WS>) -> &mut Self
     where
-        WT: 'static + WishTypes,
-        WF: 'static + WishFilters,
+        WS: 'static + Wishes,
     {
-        let data = SystemDataSet::from_wish_data(world, &Wish::<WT, WF>::get_wish_data()).unwrap();
-        self.0.push((Box::new(callback), data));
+        let wishes = callback.get_wish_datas();
+        let mut sets = Vec::new();
+        for wish in wishes.into_iter() {
+            let data = SystemDataSet::from_wish_data(world, &wish).unwrap();
+            sets.push(data);
+        }
+        self.0.push((Box::new(callback), sets));
         self
     }
 
-    pub fn consume(self) -> Vec<(BoxedSystem, SystemDataSet)> {
+    pub fn consume(self) -> Vec<(BoxedSystem, Vec<SystemDataSet>)> {
         self.0
     }
 }

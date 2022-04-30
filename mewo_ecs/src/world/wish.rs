@@ -8,6 +8,7 @@ use std::marker::PhantomData;
 
 /*
 
+(           <-- Wishes
 Wish<(          <-- WishTypes
     &C,             <-- WishType
     &mut C,         <-'
@@ -17,8 +18,14 @@ Wish<(          <-- WishTypes
     Without<W>,     <-'
     ...
 )>
+)
 
 */
+
+pub trait Wishes {
+    fn create(world: *const World, set_insts: *const Vec<SystemDataSetInstance>) -> Self;
+    fn get_wish_datas() -> Vec<WishData>;
+}
 
 #[derive(Debug)]
 pub struct WishData {
@@ -26,22 +33,22 @@ pub struct WishData {
     pub filters: Vec<(TypeId, FilterMode)>,
 }
 
-pub struct Wish<'world, 'setinst, WTypes, WFilters>
+pub struct Wish<WTypes, WFilters>
 where
     WTypes: WishTypes,
     WFilters: WishFilters,
 {
     phantom: PhantomData<(WTypes, WFilters)>,
-    world: &'world World,
-    set_inst: &'setinst SystemDataSetInstance,
+    world: *const World,
+    set_inst: *const SystemDataSetInstance,
 }
 
-impl<'world, 'setinst, WTypes, WFilters> Wish<'world, 'setinst, WTypes, WFilters>
+impl<WTypes, WFilters> Wish<WTypes, WFilters>
 where
     WTypes: WishTypes,
     WFilters: WishFilters,
 {
-    pub fn create(world: &'world World, set_inst: &'setinst SystemDataSetInstance) -> Self {
+    pub fn create(world: *const World, set_inst: *const SystemDataSetInstance) -> Self {
         Wish {
             world,
             set_inst,
@@ -66,27 +73,76 @@ where
             set_inst: self.set_inst,
         }
     }
+
+    pub fn eiter(&self) -> WishEIter<WTypes> {
+        WishEIter {
+            phantom: PhantomData,
+            entity_idx: 0,
+            world: self.world,
+            set_inst: self.set_inst,
+        }
+    }
 }
 
-pub struct WishIter<'world, 'setinst, WTypes>
+//  should be safe bc both world and set_inst are
+//  never borrowed exclusively
+//  until the end of system execution
+pub struct WishIter<WTypes>
 where
     WTypes: WishTypes,
 {
     phantom: PhantomData<WTypes>,
     entity_idx: usize,
-    world: &'world World,
-    set_inst: &'setinst SystemDataSetInstance,
+    world: *const World,
+    set_inst: *const SystemDataSetInstance,
 }
 
-impl<'world, 'entities, WTypes> Iterator for WishIter<'world, 'entities, WTypes>
+impl<WTypes> Iterator for WishIter<WTypes>
+where
+    WTypes: WishTypes,
+{
+    type Item = WTypes;
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some(entity) = unsafe { self.set_inst.as_ref().unwrap() }
+            .entities
+            .get(self.entity_idx)
+        {
+            self.entity_idx += 1;
+            Some(WTypes::datas(
+                unsafe { self.world.as_ref().unwrap() },
+                *entity,
+            ))
+        } else {
+            None
+        }
+    }
+}
+
+pub struct WishEIter<WTypes>
+where
+    WTypes: WishTypes,
+{
+    phantom: PhantomData<WTypes>,
+    entity_idx: usize,
+    world: *const World,
+    set_inst: *const SystemDataSetInstance,
+}
+
+impl<WTypes> Iterator for WishEIter<WTypes>
 where
     WTypes: WishTypes,
 {
     type Item = (Entity, WTypes);
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(entity) = self.set_inst.entities.get(self.entity_idx) {
+        if let Some(entity) = unsafe { self.set_inst.as_ref().unwrap() }
+            .entities
+            .get(self.entity_idx)
+        {
             self.entity_idx += 1;
-            Some((*entity, WTypes::datas(self.world, *entity)))
+            Some((
+                *entity,
+                WTypes::datas(unsafe { self.world.as_ref().unwrap() }, *entity),
+            ))
         } else {
             None
         }
@@ -103,10 +159,7 @@ pub trait WishType {
     fn data(data: *const ()) -> Self;
 }
 
-pub struct R<C: Component>(*const C);
-pub struct W<C: Component>(*const C);
-
-impl<C> WishType for R<C>
+impl<C> WishType for &C
 where
     C: 'static + Component,
 {
@@ -115,11 +168,11 @@ where
     }
 
     fn data(data: *const ()) -> Self {
-        Self(data as *const C)
+        unsafe { (data as *const C).as_ref().unwrap() }
     }
 }
 
-impl<C> WishType for W<C>
+impl<C> WishType for &mut C
 where
     C: 'static + Component,
 {
@@ -128,36 +181,7 @@ where
     }
 
     fn data(data: *const ()) -> Self {
-        Self(data as *const C)
-    }
-}
-
-impl<C> std::ops::Deref for R<C>
-where
-    C: 'static + Component,
-{
-    type Target = C;
-    fn deref(&self) -> &Self::Target {
-        unsafe { self.0.as_ref() }.unwrap()
-    }
-}
-
-impl<C> std::ops::Deref for W<C>
-where
-    C: 'static + Component,
-{
-    type Target = C;
-    fn deref(&self) -> &Self::Target {
-        unsafe { self.0.as_ref() }.unwrap()
-    }
-}
-
-impl<C> std::ops::DerefMut for W<C>
-where
-    C: 'static + Component,
-{
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        unsafe { (self.0 as *mut C).as_mut() }.unwrap()
+        unsafe { (data as *mut C).as_mut().unwrap() }
     }
 }
 

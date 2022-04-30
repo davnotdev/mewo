@@ -32,9 +32,9 @@ where
 pub struct AppBuilder {
     world: World,
     commands: WorldCommands,
-    plugins: Vec<(String, Vec<(BoxedSystem, SystemDataSet)>)>,
-    plugins_start: Vec<(String, Vec<(BoxedSystem, SystemDataSet)>)>,
-    plugins_end: Vec<(String, Vec<(BoxedSystem, SystemDataSet)>)>,
+    plugins: Vec<(String, Vec<(BoxedSystem, Vec<SystemDataSet>)>)>,
+    plugins_start: Vec<(String, Vec<(BoxedSystem, Vec<SystemDataSet>)>)>,
+    plugins_end: Vec<(String, Vec<(BoxedSystem, Vec<SystemDataSet>)>)>,
 }
 
 impl AppBuilder {
@@ -53,7 +53,7 @@ impl AppBuilder {
         callback: PluginBuildCallback,
     ) -> (
         Vec<String>,
-        Vec<(BoxedSystem, SystemDataSet)>,
+        Vec<(BoxedSystem, Vec<SystemDataSet>)>,
         WorldCommands,
     ) {
         let mut builder = PluginBuilder::create(world);
