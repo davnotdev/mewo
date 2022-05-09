@@ -114,6 +114,18 @@ impl SystemDataSet {
             &self.filter.without,
         ))
     }
+
+    pub fn realign_len(&mut self, world: &World) {
+        self.total_withs.realign_len(world);
+        self.reads.realign_len(world);
+        self.writes.realign_len(world);
+        if let Some(with) = &mut self.filter.with {
+            with.realign_len(world);
+        }
+        if let Some(without) = &mut self.filter.without {
+            without.realign_len(world);
+        }
+    }
 }
 
 pub struct SystemDataSetInstance {

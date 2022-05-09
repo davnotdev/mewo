@@ -21,18 +21,18 @@ fn update_time(args: &mut SystemArgs, _w: Wish<(), ()>) {
 
 pub struct TimePlugin;
 
-impl TimePlugin {
-    pub fn name() -> &'static str {
+impl Plugin for TimePlugin {
+    fn name() -> &'static str {
         "mewo_tk_common_time"
     }
 
-    pub fn plugin(pb: &mut PluginBuilder) {
-        let mut cmds = pb.commands();
+    fn plugin(a: &mut App) {
+        let cmds = a.commands();
         cmds.modify_resources(|rmgr| {
             rmgr.insert::<Time>(Time {
                 last_instant: Instant::now(),
             });
         });
-        pb.sys(update_time);
+        a.sys(update_time);
     }
 }

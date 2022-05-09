@@ -17,7 +17,6 @@ pub enum ECSError {
     EntityAlreadyHasComponent(Entity, ComponentErrorIdentifier),
     EntityDoesNotHaveComponent(Entity, ComponentErrorIdentifier),
     EntityDoesNotExist(Entity),
-    PluginDependencyNotFound(String),
     ResourceNotFound(&'static str),
 }
 

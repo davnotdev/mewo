@@ -35,8 +35,7 @@ impl BoolMask {
             *byte ^=
                 (-(val as i128) ^ *byte as i128) as InnerMaskType & (1 << idx % INNER_MASK_LEN);
         } else {
-            let new_capacity = idx as f32 / INNER_MASK_LEN as f32;
-            self.mask.resize(new_capacity.ceil() as usize, 0);
+            self.resize_to_capacity(idx);
             self.set(idx, val);
         }
     }
@@ -50,6 +49,11 @@ impl BoolMask {
             }
             Some(())
         }
+    }
+
+    pub fn resize_to_capacity(&mut self, cap: usize) {
+        let new_capacity = cap as f32 / INNER_MASK_LEN as f32;
+        self.mask.resize(new_capacity.ceil() as usize, 0);
     }
 
     pub fn bitwise_and(&self, other: &BoolMask) -> Option<BoolMask> {

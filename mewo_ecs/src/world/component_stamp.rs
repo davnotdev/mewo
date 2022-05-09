@@ -94,4 +94,12 @@ impl ComponentStamp {
         }
         true
     }
+
+    pub fn realign_len(&mut self, world: &World) {
+        let proper = world
+            .get_component_manager()
+            .get_component_type_count();
+        self.stamp.resize_to_capacity(proper);
+        self.len = proper;
+    } 
 }

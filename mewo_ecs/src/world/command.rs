@@ -63,10 +63,4 @@ impl WorldCommands {
         self.entity_removes.clear();
         self.resource_modifies.clear();
     }
-
-    pub fn merge(&mut self, mut other: Self) {
-        self.entity_cmds.append(&mut other.entity_cmds);
-        self.entity_removes.append(&mut other.entity_removes);
-        self.resource_modifies.append(&mut other.resource_modifies);
-    }
 }

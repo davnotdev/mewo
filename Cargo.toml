@@ -3,4 +3,5 @@ members = [
     "mewo_ecs",
     "mewo_term",
     "mewo_common",
+    "sandbox/termbird",
 ]

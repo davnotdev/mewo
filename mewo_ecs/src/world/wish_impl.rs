@@ -116,7 +116,6 @@ where
 {
     fn get_types() -> Vec<(TypeId, ComponentAccessMode)> {
         let ret = vec![W0::get_type(), W1::get_type()];
-        println!("many types? {:?}", ret);
         ret
     }
 

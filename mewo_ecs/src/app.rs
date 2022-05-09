@@ -1,7 +1,6 @@
 use crate::*;
-use error::Result;
 
-pub struct App<E>
+pub struct AppInstance<E>
 where
     E: Executor,
 {
@@ -9,7 +8,7 @@ where
     world: World,
 }
 
-impl<E> App<E>
+impl<E> AppInstance<E>
 where
     E: Executor,
 {
@@ -29,95 +28,77 @@ where
     }
 }
 
-pub struct AppBuilder {
+pub struct App {
+    deps: Vec<String>,
     world: World,
     commands: WorldCommands,
-    plugins: Vec<(String, Vec<(BoxedSystem, Vec<SystemDataSet>)>)>,
-    plugins_start: Vec<(String, Vec<(BoxedSystem, Vec<SystemDataSet>)>)>,
-    plugins_end: Vec<(String, Vec<(BoxedSystem, Vec<SystemDataSet>)>)>,
+    system_builder: SystemBuilder,
 }
 
-impl AppBuilder {
-    pub fn create() -> Self {
-        AppBuilder {
-            commands: WorldCommands::create(),
+impl App {
+    pub fn builder() -> Self {
+        App {
+            deps: Vec::new(),
             world: World::create(),
-            plugins: Vec::new(),
-            plugins_start: Vec::new(),
-            plugins_end: Vec::new(),
+            commands: WorldCommands::create(),
+            system_builder: SystemBuilder::create(),
         }
     }
 
-    fn plugin_build(
-        world: &mut World,
-        callback: PluginBuildCallback,
-    ) -> (
-        Vec<String>,
-        Vec<(BoxedSystem, Vec<SystemDataSet>)>,
-        WorldCommands,
-    ) {
-        let mut builder = PluginBuilder::create(world);
-        (callback)(&mut builder);
-        (
-            builder.deps,
-            builder.system_builder.consume(),
-            builder.commands,
-        )
+    pub fn plugin<P: Plugin>(mut self, p: P) -> Self {
+        self.dep(p);
+        self
     }
 
-    fn check_deps(&self, deps: Vec<String>) -> Result<()> {
-        for dep in deps {
-            for (name, _plugin) in &self.plugins {
-                if dep == *name {
-                    break;
-                }
-            }
-            return Err(ECSError::PluginDependencyNotFound(dep));
+    pub fn dep<P: Plugin>(&mut self, _: P) -> &mut Self {
+        let dep_name = String::from(P::name());
+        if !self.deps.contains(&dep_name) {
+            P::plugin(self);
+            self.deps.push(dep_name);
         }
-        Ok(())
-    }
-
-    pub fn plugin(mut self, name: &str, callback: PluginBuildCallback) -> Self {
-        let (deps, sys, cmds) = Self::plugin_build(&mut self.world, callback);
-        self.check_deps(deps).unwrap();
-        self.commands.merge(cmds);
-        self.plugins.push((String::from(name), sys));
         self
     }
 
-    pub fn plugin_start(mut self, name: &str, callback: PluginBuildCallback) -> Self {
-        let (deps, sys, cmds) = Self::plugin_build(&mut self.world, callback);
-        self.check_deps(deps).unwrap();
-        self.commands.merge(cmds);
-        self.plugins_start.push((String::from(name), sys));
+    pub fn sys<WS>(&mut self, system: SystemFunction<WS>) -> &mut Self
+    where
+        WS: 'static + Wishes,
+    {
+        self.system_builder.sys(&self.world, system);
         self
     }
 
-    pub fn plugin_end(mut self, name: &str, callback: PluginBuildCallback) -> Self {
-        let (deps, sys, cmds) = Self::plugin_build(&mut self.world, callback);
-        self.check_deps(deps).unwrap();
-        self.commands.merge(cmds);
-        self.plugins_end.push((String::from(name), sys));
+    pub fn component<C>(&mut self) -> &mut Self
+    where
+        C: 'static + Component,
+    {
+        self.world
+            .get_mut_component_manager()
+            .register_component_type::<C>()
+            .unwrap();
         self
     }
 
-    pub fn build<E>(self) -> App<E>
+    pub fn commands(&mut self) -> &mut WorldCommands {
+        &mut self.commands
+    }
+
+    pub fn build<E>(mut self) -> AppInstance<E>
     where
         E: Executor,
     {
-        let mut finals = Vec::new();
-        for (_name, plugin) in self
-            .plugins_start
-            .into_iter()
-            .chain(self.plugins.into_iter())
-            .chain(self.plugins_end.into_iter())
-        {
-            for sys in plugin.into_iter() {
-                finals.push(sys)
+        let mut systems = self.system_builder.consume();
+
+    //  fixes an issue where systems are added
+    //  but before all components are registered
+        for (_sysf, sys_datas) in systems.iter_mut() {
+            for sys_data in sys_datas.iter_mut() {
+                sys_data.realign_len(&self.world);
             }
         }
-        App {
-            exec: E::create(&self.world, finals),
+
+        let exec = E::create(&mut self.world, systems, self.commands);
+        AppInstance {
+            exec,
             world: self.world,
         }
     }

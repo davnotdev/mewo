@@ -1,29 +1,59 @@
-// use rustbox::RustBox;
 use mewo_ecs::*;
+pub use termbox_sys::*;
+use mewo_common::EventPlugin;
 
 mod input;
 mod render;
 
-pub struct TermContext {
-    // rb: RustBox,
-}
+pub use input::{TermKeyEvent, TermResizeEvent};
+pub use render::{TermQuad, TermQuadType};
+
+pub struct TermContext;
 impl Resource for TermContext {}
+
+impl TermContext {
+    fn create() -> TermContext {
+        unsafe {
+            tb_init();
+        };
+        TermContext
+    }
+
+    pub fn width(&self) -> i32 {
+        unsafe { tb_width() }
+    }
+
+    pub fn height(&self) -> i32 {
+        unsafe { tb_height() }
+    }
+}
+
+impl Drop for TermContext {
+    fn drop(&mut self) {
+        unsafe { 
+            tb_shutdown();
+        };
+    }
+}
 
 pub struct TermPlugin;
 
-impl TermPlugin {
-    pub fn name() -> &'static str {
+impl Plugin for TermPlugin {
+    fn name() -> &'static str {
         "mewo_tk_term"
     }
 
-    pub fn plugin(pb: &mut PluginBuilder) {
-        let mut cmds = pb.commands();
+    fn plugin(a: &mut App) {
+        let cmds = a.commands();
         cmds.modify_resources(|rmgr| {
-            rmgr.insert::<TermContext>(TermContext {
-   //             rb: RustBox::init(Default::default()).unwrap(),
-            })
+            rmgr.insert(TermContext::create());
         });
-        pb.dep(mewo_common::EventPlugin::name())
-            .dep(mewo_common::TransformPlugin::name());
+        a
+            .dep(EventPlugin)
+            .component::<input::TermKeyEvent>()
+            .component::<input::TermResizeEvent>()
+            .component::<render::TermQuad>()
+            .sys(input::term_event)
+            .sys(render::term_render);
     }
 }

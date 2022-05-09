@@ -6,8 +6,8 @@ pub struct StraightExecutor {
 }
 
 impl Executor for StraightExecutor {
-    fn create(world: &World, systems: Vec<(BoxedSystem, Vec<SystemDataSet>)>) -> Self {
-        StraightExecutor {
+    fn create(world: &mut World, systems: Vec<(BoxedSystem, Vec<SystemDataSet>)>, mut init_cmds: WorldCommands) -> Self {
+        let mut exec = StraightExecutor {
             systems: {
                 let mut self_systems = Vec::with_capacity(systems.len());
                 for (sys, sets) in systems.into_iter() {
@@ -21,7 +21,9 @@ impl Executor for StraightExecutor {
                 self_systems
             },
             commands: WorldCommands::create(),
-        }
+        };
+        Self::exec_commands(world, &mut exec.systems, &mut init_cmds);
+        exec
     }
 
     fn run_systems(&mut self, world: &mut World) {
@@ -31,7 +33,17 @@ impl Executor for StraightExecutor {
     }
 
     fn run_commands(&mut self, world: &mut World) {
-        for (emh, callback) in self.commands.entity_cmds.iter_mut() {
+        Self::exec_commands(world, &mut self.systems, &mut self.commands);
+    }
+}
+
+impl StraightExecutor {
+    fn exec_commands(
+        world: &mut World, 
+        systems: &mut Vec<(BoxedSystem, Vec<SystemDataSet>, Vec<SystemDataSetInstance>)>, 
+        cmds: &mut WorldCommands
+    ) {
+        for (emh, callback) in cmds.entity_cmds.iter() {
             let e = match emh {
                 EntityModifyHandle::Spawn => world.insert_entity(),
                 EntityModifyHandle::Entity(e) => *e,
@@ -39,26 +51,27 @@ impl Executor for StraightExecutor {
             if let Some(callback) = callback {
                 callback.call(e, world);
             };
-            for (_sys, sets, insts) in self.systems.iter_mut() {
+            for (_sys, sets, insts) in systems.iter_mut() {
                 for (inst, data) in insts.iter_mut().zip(sets.iter()) {
                     inst.any_entity_modify(&world, &data, e);
                 }
             }
         }
-        for e in self.commands.entity_removes.iter() {
-            for (_sys, _sets, insts) in self.systems.iter_mut() {
+        for e in cmds.entity_removes.iter() {
+            for (_sys, _sets, insts) in systems.iter_mut() {
                 for inst in insts {
                     inst.any_entity_remove(*e);
                 }
             }
             world.remove_entity(*e).unwrap();
         }
-        for modify in self.commands.resource_modifies.iter() {
+        for modify in cmds.resource_modifies.iter() {
             world.modify_resources(modify);
         }
+        cmds.flush();
 
-        self.commands.flush();
     }
+
 }
 
 //  spawn 3 entities
@@ -141,7 +154,7 @@ fn test_straight_executor() {
         .sys(&world, syswithout)
         .sys(&world, syscompiletest0)
         .sys(&world, syscompiletest1);
-    let mut exec = StraightExecutor::create(&world, systems.consume());
+    let mut exec = StraightExecutor::create(&mut world, systems.consume(), WorldCommands::create());
     exec.run_systems(&mut world);
 
     assert_eq!(

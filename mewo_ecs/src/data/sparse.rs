@@ -32,7 +32,6 @@ impl<T> SparseSet<T> {
     }
 
     pub fn remove(&mut self, idx: usize) -> Option<T> {
-        println!("{}", self.dense.len());
         if idx >= self.sparse.len() {
             None
         } else {
