@@ -1,7 +1,9 @@
 [workspace]
 members = [
-    "mewo_ecs",
-    "mewo_term",
-    "mewo_common",
-    "sandbox/termbird",
+    "core/mewo_ecs",
+    "core/rust_burrito",
+
+    "std/mewo_common",
+#    "mewo_term",
+#    "sandbox/termbird",
 ]
