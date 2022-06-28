@@ -77,7 +77,7 @@ impl PluginBuilder {
                         Wish::<WE, WA, WF>::create(ev, ctymgr, None),
                     );
                 } else {
-                //  Would be nice if you could move to the next access instead of spinning.
+                    //  Would be nice if you could move to the next access instead of spinning.
                     for idx in 0..count {
                         loop {
                             if let Some(access) = amgr.try_access(akid, idx).unwrap() {

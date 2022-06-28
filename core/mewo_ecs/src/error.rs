@@ -1,5 +1,5 @@
 use crate::{
-    component::{Entity, ArchetypeAccessKey, ComponentGroupId, ComponentHash, ComponentTypeId},
+    component::{ArchetypeAccessKey, ComponentGroupId, ComponentHash, ComponentTypeId, Entity},
     event::EventHash,
 };
 

@@ -1,7 +1,4 @@
-use crate::{
-    Id,
-    error::*,
-};
+use crate::{error::*, Id};
 
 type EntityId = Id;
 

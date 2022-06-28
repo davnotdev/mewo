@@ -51,7 +51,8 @@ impl<'sa, 'exec> EntityBurrito<'sa, 'exec> {
     }
 
     pub fn remove(mut self) {
-        *self.transform.as_mut().unwrap().get_mut_modify() = EntityModifyBuilder::Destroy(self.entity);
+        *self.transform.as_mut().unwrap().get_mut_modify() =
+            EntityModifyBuilder::Destroy(self.entity);
         drop(self)
     }
 }
@@ -70,7 +71,9 @@ pub struct EntityInsertBurrito<'sa, 'exec> {
 
 impl<'sa, 'exec> EntityInsertBurrito<'sa, 'exec> {
     pub fn create(args: &'sa mut SA<'exec>) -> Self {
-        let transform = Some(EntityTransformBuilder::create(EntityModifyBuilder::Create(None)));
+        let transform = Some(EntityTransformBuilder::create(EntityModifyBuilder::Create(
+            None,
+        )));
         EntityInsertBurrito { args, transform }
     }
 

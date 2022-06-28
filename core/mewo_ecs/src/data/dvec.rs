@@ -18,7 +18,7 @@ impl DVec {
 
     pub fn resize(&mut self, additional: usize, inplace: *const u8) {
         if self.data_size == 0 {
-            return 
+            return;
         }
         self.data.reserve(additional * self.data_size);
         for _ in 0..additional {
@@ -34,7 +34,7 @@ impl DVec {
             None?
         }
         for b in (0..self.data_size).rev() {
-            let &rm = self.data.get(self.data.len()-1).unwrap();
+            let &rm = self.data.get(self.data.len() - 1).unwrap();
             *self.data.get_mut(idx * self.data_size + b).unwrap() = rm;
             self.data.pop();
         }

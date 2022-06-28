@@ -4,4 +4,4 @@ mod tval;
 
 pub use dvec::DVec;
 pub use sparse::SparseSet;
-pub use tval::{TVal, TValDropFunction, TValCloneFunction};
+pub use tval::{TVal, TValCloneFunction, TValDropFunction};

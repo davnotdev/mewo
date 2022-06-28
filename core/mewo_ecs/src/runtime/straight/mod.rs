@@ -72,7 +72,7 @@ impl Executor for StraightExecutor {
                             galaxy,
                             system.archetype_access_key,
                         );
-                    };
+                    }
                 }
                 EventOption::Startup => unreachable!(),
             }

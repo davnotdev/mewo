@@ -1,4 +1,4 @@
-use super::{*, storage::ArchetypeStorage, locker::LockState};
+use super::{locker::LockState, storage::ArchetypeStorage, *};
 
 pub struct ArchetypeAccessKeyManager {
     keys: Vec<(ArchetypeAccessKeyEntry, ComponentGroupQuery)>,

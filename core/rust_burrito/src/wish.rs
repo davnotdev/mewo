@@ -62,10 +62,7 @@ where
                 .into_iter()
                 .map(|hash| {
                     let cty = self.ctymgr.get_id_with_hash(hash).unwrap();
-                    access
-                        .get_iter(cty)
-                        .map(|data| Some(data))
-                        .unwrap_or(None)
+                    access.get_iter(cty).map(|data| Some(data)).unwrap_or(None)
                 })
                 .collect(),
             phantom: PhantomData,
@@ -82,16 +79,12 @@ where
                 .into_iter()
                 .map(|hash| {
                     let cty = self.ctymgr.get_id_with_hash(hash).unwrap();
-                    access
-                        .get_iter(cty)
-                        .map(|data| Some(data))
-                        .unwrap_or(None)
+                    access.get_iter(cty).map(|data| Some(data)).unwrap_or(None)
                 })
                 .collect(),
             access,
             phantom: PhantomData,
         }
-        
     }
 }
 
@@ -112,7 +105,7 @@ where
             None?
         }
         self.idx += 1;
-        
+
         let data = WA::datas(self.idx - 1, &self.datas);
         let ret = Some(data);
         ret

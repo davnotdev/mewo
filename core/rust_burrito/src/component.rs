@@ -15,7 +15,7 @@ pub trait Component: Clone + 'static {
         std::any::TypeId::of::<Self>().hash(&mut hasher);
         hasher.finish()
     }
-    fn is_copy() -> bool;   //  This will come later :)
+    fn is_copy() -> bool; //  This will come later :)
 }
 
 //  Doesn't work :(
@@ -30,4 +30,3 @@ pub trait Component: Clone + 'static {
 //          true
 //      }
 //  }
-

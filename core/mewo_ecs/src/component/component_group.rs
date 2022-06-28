@@ -1,5 +1,5 @@
-use crate::error::*;
 use super::{ComponentGroupId, ComponentTypeId};
+use crate::error::*;
 
 pub struct ComponentGroupModify {
     data: Vec<ComponentTypeId>,
@@ -44,9 +44,7 @@ impl ComponentGroup {
 
     #[cfg(test)]
     pub fn builder() -> ComponentGroupModify {
-        ComponentGroupModify {
-            data: Vec::new(),
-        }
+        ComponentGroupModify { data: Vec::new() }
     }
 
     pub fn modify(self) -> ComponentGroupModify {

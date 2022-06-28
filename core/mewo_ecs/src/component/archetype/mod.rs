@@ -41,7 +41,7 @@ impl ArchetypeManager {
     pub fn find_component(&self, cty: ComponentTypeId, entity: Entity) -> *const u8 {
         for (_gid, storage) in self.storages.get_dense() {
             if let Ok(ptr) = storage.get(entity, cty) {
-                return ptr
+                return ptr;
             }
         }
         panic!()
