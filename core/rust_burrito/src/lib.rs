@@ -12,6 +12,7 @@ mod test;
 pub use component::*;
 pub use event::*;
 pub use plugin::*;
+pub use resource::*;
 pub use system::*;
 pub use wish::*;
 
