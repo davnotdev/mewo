@@ -12,7 +12,7 @@ pub use entity::{Entity, EntityManager};
 pub use query::{ComponentGroupQuery, ComponentQueryAccessType, ComponentQueryFilterType};
 pub use transform::{EntityModifyBuilder, EntityTransformBuilder, EntityTransformer};
 
-pub use super::ComponentHash;
 pub use super::Id;
 pub type ComponentTypeId = Id;
 pub type ComponentGroupId = Id;
+pub type ComponentHash = super::HashType;

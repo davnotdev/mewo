@@ -1,6 +1,7 @@
 mod component;
 mod event;
 mod plugin;
+mod resource;
 mod system;
 mod wish;
 mod wish_impl;

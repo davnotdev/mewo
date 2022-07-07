@@ -82,7 +82,7 @@ where
 
     fn data(idx: usize, data: &Option<*const u8>) -> Self {
         if let Some(data) = data {
-            Some(unsafe { (data as *const C).offset(idx as isize).as_ref().unwrap() })
+            Some(unsafe { (*data as *const C).offset(idx as isize).as_ref().unwrap() })
         } else {
             None
         }
@@ -103,7 +103,7 @@ where
 
     fn data(idx: usize, data: &Option<*const u8>) -> Self {
         if let Some(data) = data {
-            Some(unsafe { (data as *mut C).offset(idx as isize).as_mut().unwrap() })
+            Some(unsafe { (*data as *mut C).offset(idx as isize).as_mut().unwrap() })
         } else {
             None
         }

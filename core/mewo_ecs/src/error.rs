@@ -1,6 +1,7 @@
 use crate::{
     component::{ArchetypeAccessKey, ComponentGroupId, ComponentHash, ComponentTypeId, Entity},
     event::EventHash,
+    resource::ResourceHash,
 };
 
 pub type Result<T> = std::result::Result<T, RuntimeError>;
@@ -74,5 +75,13 @@ pub enum RuntimeError {
 
     BadEventStorageGetIndex {
         idx: usize,
+    },
+
+    DuplicateResourceTypeHash {
+        hash: ResourceHash,
+    },
+
+    BadResourceTypeHash {
+        hash: EventHash,
     },
 }

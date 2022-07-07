@@ -8,6 +8,7 @@ use crate::{
         EntityTransformBuilder,
     },
     event::EventManager,
+    resource::ResourceManager,
 };
 
 pub struct Galaxy {
@@ -52,6 +53,7 @@ impl GalaxyRuntime {
             amgr: ArchetypeManager::create(),
             ctymgr: ComponentTypeManager::create(),
         };
+        let mut rcmgr = ResourceManager::create();
         let mut evmgr = EventManager::create();
         let plugins = galaxy.plugins.consume();
 
@@ -61,6 +63,7 @@ impl GalaxyRuntime {
                  mut systems,
                  components,
                  events,
+                 resources,
                  ..
              }| {
                 //  Systems
@@ -77,6 +80,11 @@ impl GalaxyRuntime {
                     .into_iter()
                     .map(|ev_entry| evmgr.register(ev_entry))
                     .for_each(|res| res.unwrap());
+                //  Resources
+                resources
+                    .into_iter()
+                    .map(|rc_entry| rcmgr.register(rc_entry))
+                    .for_each(|res| res.unwrap());
             },
         );
 
@@ -84,7 +92,7 @@ impl GalaxyRuntime {
             .into_iter()
             .map(|sys| sys.build(&runtime.ctymgr, &mut runtime.amgr).unwrap())
             .collect::<Vec<super::System>>();
-        let exec = E::create(EventManager::create(), systems, &mut runtime);
+        let exec = E::create(evmgr, rcmgr, systems, &mut runtime);
         (runtime, exec)
     }
 

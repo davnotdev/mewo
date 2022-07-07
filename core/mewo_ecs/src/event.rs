@@ -39,7 +39,7 @@ impl EventManager {
 
     pub fn register(&mut self, entry: EventTypeEntry) -> Result<()> {
         if self.hash_map.contains_key(&entry.hash) {
-            Err(RuntimeError::DuplicateComponentTypeHash { hash: entry.hash })?
+            Err(RuntimeError::DuplicateEventTypeHash { hash: entry.hash })?
         }
         let storage = EventStorage::create(entry.size, entry.drop, entry.clone);
         self.hash_map.insert(entry.hash, (entry, storage));
@@ -131,7 +131,7 @@ impl EventInsert {
         self.events.push((ev_hash, val));
     }
 
-    pub fn get(&self) -> &Vec<(EventHash, TVal)> {
+    pub(self) fn get(&self) -> &Vec<(EventHash, TVal)> {
         &self.events
     }
 

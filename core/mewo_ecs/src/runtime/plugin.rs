@@ -1,5 +1,7 @@
 use super::system::SystemBuilder;
-use crate::{component::ComponentTypeEntry, error::*, event::EventTypeEntry};
+use crate::{
+    component::ComponentTypeEntry, error::*, event::EventTypeEntry, resource::ResourceTypeEntry,
+};
 
 pub struct RawPlugin {
     pub name: String,
@@ -7,6 +9,7 @@ pub struct RawPlugin {
     pub events: Vec<EventTypeEntry>,
     pub systems: Vec<SystemBuilder>,
     pub components: Vec<ComponentTypeEntry>,
+    pub resources: Vec<ResourceTypeEntry>,
 }
 
 pub struct RawPluginBundle {
@@ -59,6 +62,7 @@ fn test_plugin_bundle() {
         events: vec![],
         systems: vec![],
         components: Vec::new(),
+        resources: Vec::new(),
     };
 
     let b = RawPlugin {
@@ -67,6 +71,7 @@ fn test_plugin_bundle() {
         events: vec![],
         systems: vec![],
         components: Vec::new(),
+        resources: Vec::new(),
     };
 
     let c = RawPlugin {
@@ -75,6 +80,7 @@ fn test_plugin_bundle() {
         events: vec![],
         systems: vec![],
         components: Vec::new(),
+        resources: Vec::new(),
     };
 
     fn clone(plugin: &RawPlugin) -> RawPlugin {
@@ -84,6 +90,7 @@ fn test_plugin_bundle() {
             events: vec![],
             systems: Vec::new(),
             components: Vec::new(),
+            resources: Vec::new(),
         }
     }
 

@@ -1,4 +1,4 @@
-use super::{component::Component, event::EventBus, wish::Wish};
+use super::{component::Component, event::EventBus, resource::ResourceBus, wish::Wish};
 use mewo_ecs::{Entity, EntityModifyBuilder, EntityTransformBuilder, EntityTransformer, TVal};
 
 pub type SystemFunction<WE, WA, WF> = fn(SA, Wish<WE, WA, WF>);
@@ -8,13 +8,19 @@ pub type SA<'exec> = SystemArgs<'exec>;
 
 pub struct SystemArgs<'exec> {
     pub events: EventBus<'exec>,
+    pub resources: ResourceBus<'exec>,
     pub transformer: &'exec mut EntityTransformer,
 }
 
 impl<'exec> SystemArgs<'exec> {
-    pub fn create(events: EventBus<'exec>, transformer: &'exec mut EntityTransformer) -> Self {
+    pub fn create(
+        events: EventBus<'exec>,
+        resources: ResourceBus<'exec>,
+        transformer: &'exec mut EntityTransformer,
+    ) -> Self {
         SystemArgs {
             events,
+            resources,
             transformer,
         }
     }
