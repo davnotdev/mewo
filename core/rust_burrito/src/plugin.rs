@@ -154,7 +154,7 @@ impl PluginBuilder {
                 &std::ptr::read(ptr as *const R).clone() as &R as *const R as *const u8,
             )
         };
-        self.raw_event(EventTypeEntry {
+        self.raw_resource(ResourceTypeEntry {
             size: std::mem::size_of::<R>(),
             name: R::name(),
             hash: R::hash(),

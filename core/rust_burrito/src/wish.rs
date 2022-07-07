@@ -97,7 +97,7 @@ pub struct WishIter<WA> {
 
 impl<WA> Iterator for WishIter<WA>
 where
-    WA: WishAccesses + std::fmt::Debug,
+    WA: WishAccesses,
 {
     type Item = WA;
     fn next(&mut self) -> Option<Self::Item> {

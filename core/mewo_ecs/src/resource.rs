@@ -42,20 +42,22 @@ impl ResourceManager {
             .0)
     }
 
-    pub fn get_resource(&self, hash: ResourceHash) -> Result<&Option<TVal>> {
-        Ok(&self
+    pub fn get_resource(&self, hash: ResourceHash) -> Result<Option<&TVal>> {
+        Ok(self
             .hash_map
             .get(&hash)
             .ok_or(RuntimeError::BadResourceTypeHash { hash })?
-            .1)
+            .1
+            .as_ref())
     }
 
-    pub fn get_mut_resource(&mut self, hash: ResourceHash) -> Result<&mut Option<TVal>> {
-        Ok(&mut self
+    pub fn get_mut_resource(&mut self, hash: ResourceHash) -> Result<Option<&mut TVal>> {
+        Ok(self
             .hash_map
             .get_mut(&hash)
             .ok_or(RuntimeError::BadResourceTypeHash { hash })?
-            .1)
+            .1
+            .as_mut())
     }
 
     pub fn insert(&mut self, hash: ResourceHash, val: TVal) -> Result<()> {

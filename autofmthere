@@ -1,0 +1,8 @@
+#!/bin/sh
+
+#  Look, I'm not a command line god.
+#  I can barely remember how regex works let alone command line flags.
+#  This only runs properly after a `cargo clean` is called.
+
+tree -if | grep ".rs" | xargs rustfmt
+

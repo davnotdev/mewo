@@ -72,6 +72,9 @@ impl EventManager {
     }
 
     pub fn flush(&mut self, inserts: &mut EventInsert) -> Result<()> {
+        for (_, storage) in self.hash_map.values_mut() {
+            storage.flush();
+        }
         for (hash, insert) in inserts.get() {
             let (_entry, storage) = self
                 .hash_map
@@ -115,6 +118,14 @@ impl EventStorage {
         self.datas
             .get(idx)
             .ok_or(RuntimeError::BadEventStorageGetIndex { idx })
+    }
+
+    pub fn flush(&mut self) {
+        for idx in 0..self.datas.len() {
+            let data = self.datas.get(idx).unwrap();
+            (self.drop)(data);
+        }
+        self.datas.clear();
     }
 }
 

@@ -5,6 +5,8 @@ mod event;
 mod resource;
 mod runtime;
 
+//  TODO DVecs should be able to drop their contents.
+
 pub type Id = usize;
 pub type HashType = u64;
 

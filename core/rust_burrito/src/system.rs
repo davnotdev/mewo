@@ -88,6 +88,7 @@ impl<'sa, 'exec> EntityInsertBurrito<'sa, 'exec> {
             C::hash(),
             TVal::create(std::mem::size_of::<C>(), &c as *const C as *const u8),
         );
+        std::mem::forget(c);
         self
     }
 }

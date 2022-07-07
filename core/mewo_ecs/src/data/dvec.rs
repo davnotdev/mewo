@@ -51,6 +51,11 @@ impl DVec {
             .map(|data| data as *const u8)
     }
 
+    //  Manual drop required.
+    pub fn clear(&mut self) {
+        self.data.clear();
+    }
+
     pub fn len(&self) -> usize {
         self.data.len() / self.data_size
     }
