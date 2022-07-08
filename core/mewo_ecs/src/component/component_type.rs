@@ -1,6 +1,6 @@
 use super::{ComponentHash, ComponentTypeId};
 use crate::{
-    data::{TValCloneFunction, TValDropFunction},
+    data::{ValueClone, ValueDrop},
     error::*,
 };
 use std::collections::HashMap;
@@ -9,8 +9,8 @@ pub struct ComponentTypeEntry {
     pub size: usize,
     pub name: String,
     pub hash: ComponentHash,
-    pub drop: TValDropFunction,
-    pub clone: TValCloneFunction,
+    pub drop: ValueDrop,
+    pub clone: ValueClone,
 }
 
 pub struct ComponentTypeManager {

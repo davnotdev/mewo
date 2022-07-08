@@ -3,7 +3,7 @@ use super::super::{
     transform::{EntityModifyBuilder, EntityTransformBuilder},
 };
 use super::*;
-use crate::data::TVal;
+use crate::data::{TVal, ValueClone, ValueDrop};
 
 //  TODO
 //  Access is not tested here.
@@ -15,22 +15,20 @@ fn test_archetype_transform() -> Result<()> {
 
     let size_u8 = std::mem::size_of::<u8>();
     let size_f32 = std::mem::size_of::<f32>();
-    let drop = |_| {};
-    let clone = |ptr| TVal::create(0, ptr);
 
     let _comp_u8 = ctymgr.register(ComponentTypeEntry {
         name: "u8".to_string(),
         size: std::mem::size_of::<u8>(),
         hash: 0,
-        drop,
-        clone,
+        drop: ValueDrop::empty(),
+        clone: ValueClone::empty(),
     })?;
     let _comp_f32 = ctymgr.register(ComponentTypeEntry {
         name: "f32".to_string(),
         size: std::mem::size_of::<f32>(),
         hash: 1,
-        drop,
-        clone,
+        drop: ValueDrop::empty(),
+        clone: ValueClone::empty(),
     })?;
 
     let entity_a = Entity::from_id(10);
@@ -45,13 +43,13 @@ fn test_archetype_transform() -> Result<()> {
 
     let mut entity_transform =
         EntityTransformBuilder::create(EntityModifyBuilder::Modify(entity_a));
-    entity_transform.insert(0, TVal::create(size_u8, ptr(10u8)));
+    entity_transform.insert(0, TVal::create(size_u8, ptr(10u8), ValueDrop::empty()));
     archetype.transform_entity(entity_transform.build(&ctymgr)?, &ctymgr)?;
 
     let mut entity_transform =
         EntityTransformBuilder::create(EntityModifyBuilder::Create(Some(entity_b)));
-    entity_transform.insert(0, TVal::create(size_u8, ptr(12u8)));
-    entity_transform.insert(1, TVal::create(size_f32, ptr(8.5f32)));
+    entity_transform.insert(0, TVal::create(size_u8, ptr(12u8), ValueDrop::empty()));
+    entity_transform.insert(1, TVal::create(size_f32, ptr(8.5f32), ValueDrop::empty()));
     archetype.transform_entity(entity_transform.build(&ctymgr)?, &ctymgr)?;
 
     let entity_transform = EntityTransformBuilder::create(EntityModifyBuilder::Destroy(entity_b));

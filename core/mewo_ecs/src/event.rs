@@ -1,5 +1,5 @@
 use crate::{
-    data::{DVec, TVal, TValCloneFunction, TValDropFunction},
+    data::{DVec, TVal, ValueDrop},
     error::*,
     HashType,
 };
@@ -18,12 +18,13 @@ where
 
 pub type EventHash = HashType;
 
+//  Events are assumed to be never cloned.
+//  I mean, why would you anyway?
 pub struct EventTypeEntry {
     pub size: usize,
     pub name: String,
     pub hash: EventHash,
-    pub drop: TValDropFunction,
-    pub clone: TValCloneFunction,
+    pub drop: ValueDrop,
 }
 
 pub struct EventManager {
@@ -41,7 +42,7 @@ impl EventManager {
         if self.hash_map.contains_key(&entry.hash) {
             Err(RuntimeError::DuplicateEventTypeHash { hash: entry.hash })?
         }
-        let storage = EventStorage::create(entry.size, entry.drop, entry.clone);
+        let storage = EventStorage::create(entry.size, entry.drop);
         self.hash_map.insert(entry.hash, (entry, storage));
         Ok(())
     }
@@ -87,22 +88,14 @@ impl EventManager {
     }
 }
 
-//  Just as in archetype/storage, clone is never used.
-//  `--,
-//     v
-#[allow(dead_code)]
 struct EventStorage {
-    drop: TValDropFunction,
-    clone: TValCloneFunction,
     datas: DVec,
 }
 
 impl EventStorage {
-    pub fn create(size: usize, drop: TValDropFunction, clone: TValCloneFunction) -> Self {
+    pub fn create(size: usize, drop: ValueDrop) -> Self {
         EventStorage {
-            drop,
-            clone,
-            datas: DVec::create(size),
+            datas: DVec::create(size, drop),
         }
     }
 
@@ -121,10 +114,6 @@ impl EventStorage {
     }
 
     pub fn flush(&mut self) {
-        for idx in 0..self.datas.len() {
-            let data = self.datas.get(idx).unwrap();
-            (self.drop)(data);
-        }
         self.datas.clear();
     }
 }

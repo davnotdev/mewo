@@ -19,7 +19,7 @@ fn test_rust_burrito_og() {
     #[derive(Default, Debug, Clone, Copy, PartialEq)]
     struct Data(usize, usize, usize);
     impl Component for Data {
-        fn is_copy() -> bool {
+        fn component_is_copy() -> bool {
             false
         }
     }
@@ -27,7 +27,7 @@ fn test_rust_burrito_og() {
     #[derive(Debug, Clone, PartialEq)]
     struct WithC;
     impl Component for WithC {
-        fn is_copy() -> bool {
+        fn component_is_copy() -> bool {
             false
         }
     }
@@ -35,7 +35,7 @@ fn test_rust_burrito_og() {
     #[derive(Debug, Clone, PartialEq)]
     struct WithoutC;
     impl Component for WithoutC {
-        fn is_copy() -> bool {
+        fn component_is_copy() -> bool {
             false
         }
     }

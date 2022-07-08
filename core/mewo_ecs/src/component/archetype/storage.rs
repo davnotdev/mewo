@@ -3,21 +3,15 @@ use super::{
     *,
 };
 use crate::{
-    data::{DVec, SparseSet, TValCloneFunction, TValDropFunction},
+    data::{DVec, SparseSet},
     error::*,
 };
 
-//  The `clone` member will be used on the day Half Life 3 releases.
-//  Too bad rustc doesn't get the joke.
-//  `--,
-//     v
 #[allow(dead_code)]
 #[derive(Debug)]
 struct ArchetypeStorageComponentEntry {
     row: usize,
     locker: Locker,
-    drop: TValDropFunction,
-    clone: TValCloneFunction,
 }
 
 //  TODO row? coli? idx? Which is which? Even I don't down.
@@ -50,11 +44,9 @@ impl ArchetypeStorage {
                 ArchetypeStorageComponentEntry {
                     row: idx,
                     locker: Locker::create(),
-                    drop: entry.drop,
-                    clone: entry.clone,
                 },
             );
-            storage.datas.push(DVec::create(entry.size));
+            storage.datas.push(DVec::create(entry.size, entry.drop));
         }
 
         Ok(storage)
@@ -115,8 +107,7 @@ impl ArchetypeStorage {
         let coli = self.get_entity_column(entity)?;
         self.entities.swap_remove(coli);
         //  Well, component types are sorted right?
-        for (data, (_, entry)) in self.datas.iter_mut().zip(self.component_tys.get_dense()) {
-            (entry.drop)(data.get(coli).unwrap());
+        for (data, _) in self.datas.iter_mut().zip(self.component_tys.get_dense()) {
             assert_eq!(data.swap_remove(coli), Some(()));
         }
         Ok(())
@@ -196,28 +187,28 @@ impl<'astore> ArchetypeStorageInsert<'astore> {
 
 #[test]
 fn test_storage() -> Result<()> {
-    use crate::{component::ComponentTypeEntry, data::TVal};
+    use crate::{
+        component::ComponentTypeEntry,
+        data::{ValueClone, ValueDrop},
+    };
 
     let usize_size = std::mem::size_of::<usize>();
     let u8_size = std::mem::size_of::<u8>();
-
-    let drop = |_| {};
-    let clone = |ptr| TVal::create(0, ptr);
 
     let mut ctymgr = ComponentTypeManager::create();
     let usize_id = ctymgr.register(ComponentTypeEntry {
         name: "usize".to_string(),
         size: usize_size,
         hash: 0,
-        drop,
-        clone,
+        drop: ValueDrop::empty(),
+        clone: ValueClone::empty(),
     })?;
     let u8_id = ctymgr.register(ComponentTypeEntry {
         name: "u8_size".to_string(),
         size: u8_size,
         hash: 1,
-        drop,
-        clone,
+        drop: ValueDrop::empty(),
+        clone: ValueClone::empty(),
     })?;
 
     let entity_a = Entity::from_id(1);

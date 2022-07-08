@@ -6,7 +6,8 @@ use super::{
     wish::{Wish, WishAccesses, WishEvent, WishFilters},
 };
 use mewo_ecs::{
-    ComponentTypeEntry, EventTypeEntry, RawPlugin, ResourceTypeEntry, SystemBuilder, TVal,
+    ComponentTypeEntry, EventTypeEntry, RawPlugin, ResourceTypeEntry, SystemBuilder, ValueClone,
+    ValueDrop,
 };
 
 pub struct PluginBuilder {
@@ -37,21 +38,13 @@ impl PluginBuilder {
     }
 
     pub fn comp<C: Component>(self) -> Self {
-        let size = std::mem::size_of::<C>();
-        let drop = |ptr| unsafe { drop(std::ptr::read(ptr as *const C)) };
-        let clone = |ptr| unsafe {
-            let size = std::mem::size_of::<C>();
-            TVal::create(
-                size,
-                &std::ptr::read(ptr as *const C).clone() as &C as *const C as *const u8,
-            )
-        };
+        let size = C::component_size();
         self.raw_comp(ComponentTypeEntry {
-            name: C::name().to_string(),
+            name: C::component_name().to_string(),
             size,
-            hash: C::hash(),
-            drop,
-            clone,
+            hash: C::component_hash(),
+            drop: ValueDrop::create(C::component_drop_callback()),
+            clone: ValueClone::create(C::component_clone_callback()),
         })
     }
 
@@ -123,20 +116,11 @@ impl PluginBuilder {
     }
 
     pub fn event<E: Event>(self) -> Self {
-        let drop = |ptr| unsafe { drop(std::ptr::read(ptr as *const E)) };
-        let clone = |ptr| unsafe {
-            let size = std::mem::size_of::<E>();
-            TVal::create(
-                size,
-                &std::ptr::read(ptr as *const E).clone() as &E as *const E as *const u8,
-            )
-        };
         self.raw_event(EventTypeEntry {
-            size: std::mem::size_of::<E>(),
-            name: E::name(),
-            hash: E::hash(),
-            drop,
-            clone,
+            size: E::event_size(),
+            name: E::event_name(),
+            hash: E::event_hash(),
+            drop: ValueDrop::create(E::event_drop_callback()),
         })
     }
 
@@ -146,20 +130,11 @@ impl PluginBuilder {
     }
 
     pub fn resource<R: Resource>(self) -> Self {
-        let drop = |ptr| unsafe { drop(std::ptr::read(ptr as *const R)) };
-        let clone = |ptr| unsafe {
-            let size = std::mem::size_of::<R>();
-            TVal::create(
-                size,
-                &std::ptr::read(ptr as *const R).clone() as &R as *const R as *const u8,
-            )
-        };
         self.raw_resource(ResourceTypeEntry {
-            size: std::mem::size_of::<R>(),
-            name: R::name(),
-            hash: R::hash(),
-            drop,
-            clone,
+            size: R::resource_size(),
+            name: R::resource_name(),
+            hash: R::resource_hash(),
+            drop: ValueDrop::create(R::resource_drop_callback()),
         })
     }
 

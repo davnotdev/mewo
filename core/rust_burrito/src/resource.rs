@@ -1,9 +1,12 @@
-use mewo_ecs::{ResourceHash, ResourceManager, ResourceModify, ResourceModifyFunction, TVal};
+use mewo_ecs::{
+    DropFunction, ResourceHash, ResourceManager, ResourceModify, ResourceModifyFunction, TVal,
+    ValueDrop,
+};
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
-pub trait Resource: Clone + 'static {
-    fn name() -> String {
+pub trait Resource: Sized + 'static {
+    fn resource_name() -> String {
         format!(
             "{}_{}",
             env!("CARGO_PKG_NAME"),
@@ -11,10 +14,18 @@ pub trait Resource: Clone + 'static {
         )
     }
 
-    fn hash() -> ResourceHash {
+    fn resource_hash() -> ResourceHash {
         let mut hasher = DefaultHasher::new();
         std::any::TypeId::of::<Self>().hash(&mut hasher);
         hasher.finish()
+    }
+
+    fn resource_drop_callback() -> DropFunction {
+        |ptr| unsafe { drop(std::ptr::read(ptr as *const Self as *mut Self)) }
+    }
+
+    fn resource_size() -> usize {
+        std::mem::size_of::<Self>()
     }
 }
 
@@ -48,14 +59,14 @@ impl<'rcmgr> ResourceModifyInstance<'rcmgr> {
 
     pub fn get<R: Resource>(&self) -> Option<&R> {
         self.rcmgr
-            .get_resource(R::hash())
+            .get_resource(R::resource_hash())
             .unwrap()
             .map(|val| unsafe { &*(val.get() as *const R) })
     }
 
     pub fn get_mut<R: Resource>(&mut self) -> Option<&mut R> {
         self.rcmgr
-            .get_mut_resource(R::hash())
+            .get_mut_resource(R::resource_hash())
             .unwrap()
             .map(|val| unsafe { &mut *(val.get() as *mut R) })
     }
@@ -63,14 +74,18 @@ impl<'rcmgr> ResourceModifyInstance<'rcmgr> {
     pub fn insert<R: Resource>(&mut self, r: R) {
         self.rcmgr
             .insert(
-                R::hash(),
-                TVal::create(std::mem::size_of::<R>(), &r as *const R as *const u8),
+                R::resource_hash(),
+                TVal::create(
+                    R::resource_size(),
+                    &r as *const R as *const u8,
+                    ValueDrop::create(R::resource_drop_callback()),
+                ),
             )
             .unwrap();
         std::mem::forget(r);
     }
 
     pub fn remove<R: Resource>(&mut self) {
-        self.rcmgr.remove(R::hash()).unwrap();
+        self.rcmgr.remove(R::resource_hash()).unwrap();
     }
 }

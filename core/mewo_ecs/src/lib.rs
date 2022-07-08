@@ -5,8 +5,6 @@ mod event;
 mod resource;
 mod runtime;
 
-//  TODO DVecs should be able to drop their contents.
-
 pub type Id = usize;
 pub type HashType = u64;
 
@@ -15,7 +13,7 @@ pub use component::{
     ComponentQueryFilterType, ComponentTypeEntry, ComponentTypeManager, Entity,
     EntityModifyBuilder, EntityTransformBuilder, EntityTransformer,
 };
-pub use data::TVal;
+pub use data::{CloneFunction, DropFunction, TVal, ValueClone, ValueDrop};
 pub use event::{EventHash, EventInsert, EventOption, EventTypeEntry};
 pub use resource::{
     ResourceHash, ResourceManager, ResourceModify, ResourceModifyFunction, ResourceTypeEntry,

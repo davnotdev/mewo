@@ -19,7 +19,7 @@ pub struct TermQuad {
     pub position: TermVector2,
 }
 impl Component for TermQuad {
-    fn is_copy() -> bool {
+    fn component_is_copy() -> bool {
         true
     }
 }

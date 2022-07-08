@@ -24,7 +24,7 @@ where
     E: Event,
 {
     fn hash() -> EventOption<EventHash> {
-        EventOption::Event(E::hash())
+        EventOption::Event(E::event_hash())
     }
 }
 
@@ -33,7 +33,7 @@ where
     C: Component,
 {
     fn access() -> (ComponentHash, ComponentQueryAccessType) {
-        (C::hash(), ComponentQueryAccessType::Read)
+        (C::component_hash(), ComponentQueryAccessType::Read)
     }
 
     fn data(idx: usize, data: &Option<*const u8>) -> Self {
@@ -46,7 +46,7 @@ where
     }
 
     fn hash() -> ComponentHash {
-        C::hash()
+        C::component_hash()
     }
 }
 
@@ -55,7 +55,7 @@ where
     C: Component,
 {
     fn access() -> (ComponentHash, ComponentQueryAccessType) {
-        (C::hash(), ComponentQueryAccessType::Write)
+        (C::component_hash(), ComponentQueryAccessType::Write)
     }
 
     fn data(idx: usize, data: &Option<*const u8>) -> Self {
@@ -68,7 +68,7 @@ where
     }
 
     fn hash() -> ComponentHash {
-        C::hash()
+        C::component_hash()
     }
 }
 
@@ -77,7 +77,7 @@ where
     C: Component,
 {
     fn access() -> (ComponentHash, ComponentQueryAccessType) {
-        (C::hash(), ComponentQueryAccessType::Write)
+        (C::component_hash(), ComponentQueryAccessType::Write)
     }
 
     fn data(idx: usize, data: &Option<*const u8>) -> Self {
@@ -89,7 +89,7 @@ where
     }
 
     fn hash() -> ComponentHash {
-        C::hash()
+        C::component_hash()
     }
 }
 
@@ -98,7 +98,7 @@ where
     C: Component,
 {
     fn access() -> (ComponentHash, ComponentQueryAccessType) {
-        (C::hash(), ComponentQueryAccessType::Write)
+        (C::component_hash(), ComponentQueryAccessType::Write)
     }
 
     fn data(idx: usize, data: &Option<*const u8>) -> Self {
@@ -110,7 +110,7 @@ where
     }
 
     fn hash() -> ComponentHash {
-        C::hash()
+        C::component_hash()
     }
 }
 

@@ -1,5 +1,7 @@
 use super::{component::Component, event::EventBus, resource::ResourceBus, wish::Wish};
-use mewo_ecs::{Entity, EntityModifyBuilder, EntityTransformBuilder, EntityTransformer, TVal};
+use mewo_ecs::{
+    Entity, EntityModifyBuilder, EntityTransformBuilder, EntityTransformer, TVal, ValueDrop,
+};
 
 pub type SystemFunction<WE, WA, WF> = fn(SA, Wish<WE, WA, WF>);
 
@@ -50,8 +52,12 @@ impl<'sa, 'exec> EntityBurrito<'sa, 'exec> {
 
     pub fn insert<C: Component>(mut self, c: C) -> Self {
         self.transform.as_mut().unwrap().insert(
-            C::hash(),
-            TVal::create(std::mem::size_of::<C>(), &c as *const C as *const u8),
+            C::component_hash(),
+            TVal::create(
+                C::component_size(),
+                &c as *const C as *const u8,
+                ValueDrop::create(C::component_drop_callback()),
+            ),
         );
         self
     }
@@ -85,8 +91,12 @@ impl<'sa, 'exec> EntityInsertBurrito<'sa, 'exec> {
 
     pub fn insert<C: Component>(mut self, c: C) -> Self {
         self.transform.as_mut().unwrap().insert(
-            C::hash(),
-            TVal::create(std::mem::size_of::<C>(), &c as *const C as *const u8),
+            C::component_hash(),
+            TVal::create(
+                C::component_size(),
+                &c as *const C as *const u8,
+                ValueDrop::create(C::component_drop_callback()),
+            ),
         );
         std::mem::forget(c);
         self

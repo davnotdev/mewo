@@ -50,7 +50,6 @@ impl ArchetypeManager {
     }
 
     //  TODO Potential crash if removed entity has later EntityModify::Modify.
-    //  TODO Memory leak when TVals aren't freed with EntityModify::Destroy.
     pub fn transform_entity(
         &mut self,
         et: EntityTransform,

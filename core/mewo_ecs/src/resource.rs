@@ -1,5 +1,5 @@
 use super::{
-    data::{TVal, TValCloneFunction, TValDropFunction},
+    data::{TVal, ValueDrop},
     error::*,
     HashType,
 };
@@ -7,12 +7,12 @@ use std::collections::HashMap;
 
 pub type ResourceHash = HashType;
 
+//  Similar to Events, resources have no need to be cloned.
 pub struct ResourceTypeEntry {
     pub size: usize,
     pub name: String,
     pub hash: ResourceHash,
-    pub drop: TValDropFunction,
-    pub clone: TValCloneFunction,
+    pub drop: ValueDrop,
 }
 
 pub struct ResourceManager {
@@ -61,26 +61,20 @@ impl ResourceManager {
     }
 
     pub fn insert(&mut self, hash: ResourceHash, val: TVal) -> Result<()> {
-        let (entry, current) = self
+        let (_, current) = self
             .hash_map
             .get_mut(&hash)
             .ok_or(RuntimeError::BadResourceTypeHash { hash })?;
-        let current_val = std::mem::replace(current, Some(val));
-        if let Some(val) = current_val {
-            (entry.drop)(val.get());
-        }
+        *current = Some(val);
         Ok(())
     }
 
     pub fn remove(&mut self, hash: ResourceHash) -> Result<()> {
-        let (entry, current) = self
+        let (_, current) = self
             .hash_map
             .get_mut(&hash)
             .ok_or(RuntimeError::BadResourceTypeHash { hash })?;
-        let current_val = std::mem::replace(current, None);
-        if let Some(val) = current_val {
-            (entry.drop)(val.get());
-        }
+        *current = None;
         Ok(())
     }
 

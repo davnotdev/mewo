@@ -171,7 +171,7 @@ where
     C: Component,
 {
     fn filter() -> (ComponentHash, ComponentQueryFilterType) {
-        (C::hash(), ComponentQueryFilterType::With)
+        (C::component_hash(), ComponentQueryFilterType::With)
     }
 }
 
@@ -180,6 +180,6 @@ where
     C: Component,
 {
     fn filter() -> (ComponentHash, ComponentQueryFilterType) {
-        (C::hash(), ComponentQueryFilterType::Without)
+        (C::component_hash(), ComponentQueryFilterType::Without)
     }
 }
