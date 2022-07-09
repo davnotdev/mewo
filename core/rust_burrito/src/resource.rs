@@ -29,13 +29,21 @@ pub trait Resource: Sized + 'static {
     }
 }
 
-pub struct ResourceBus<'rcmodify> {
+pub struct ResourceBus<'rcmgr, 'rcmodify> {
+    rcmgr: &'rcmgr ResourceManager,
     modify: &'rcmodify mut ResourceModify,
 }
 
-impl<'rcmodify> ResourceBus<'rcmodify> {
-    pub fn create(modify: &'rcmodify mut ResourceModify) -> Self {
-        ResourceBus { modify }
+impl<'rcmgr, 'rcmodify> ResourceBus<'rcmgr, 'rcmodify> {
+    pub fn create(rcmgr: &'rcmgr ResourceManager, modify: &'rcmodify mut ResourceModify) -> Self {
+        ResourceBus { rcmgr, modify }
+    }
+
+    pub fn get<R: Resource>(&self) -> Option<&R> {
+        self.rcmgr
+            .get_resource(R::resource_hash())
+            .unwrap()
+            .map(|val| unsafe { &*(val.get() as *const R) })
     }
 
     pub fn modify<F>(&mut self, f: F)

@@ -102,6 +102,8 @@ impl ArchetypeManager {
             insert.insert(cid, tval.get())?
         }
         insert.done()?;
+        self.storages.get_mut(entity_gid).unwrap().remove(e)?;
+        *self.entity_set.get_mut(e.id()).unwrap() = gid;
         Ok(())
     }
 }

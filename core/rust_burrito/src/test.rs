@@ -57,25 +57,25 @@ fn test_rust_burrito_og() {
         }
     }
 
-    fn startup_system(mut args: SA, _q: Wish<Startup, (), ()>) {
-        args.spawn().insert(Data::default());
-        args.spawn().insert(Data::default()).insert(WithC);
-        args.spawn().insert(Data::default()).insert(WithoutC);
+    fn startup_system(mut sb: SystemBus, _q: Wish<Startup, (), ()>) {
+        sb.entities.spawn().insert(Data::default());
+        sb.entities.spawn().insert(Data::default()).insert(WithC);
+        sb.entities.spawn().insert(Data::default()).insert(WithoutC);
     }
 
-    fn system_a(_args: SA, q: Wish<(), &mut Data, ()>) {
+    fn system_a(_: SystemBus, q: Wish<(), &mut Data, ()>) {
         for data in q.iter() {
             data.0 += 1;
         }
     }
 
-    fn system_b(_args: SA, q: Wish<(), &mut Data, With<WithC>>) {
+    fn system_b(_: SystemBus, q: Wish<(), &mut Data, With<WithC>>) {
         for data in q.iter() {
             data.1 += 1;
         }
     }
 
-    fn system_c(_args: SA, q: Wish<(), &mut Data, Without<WithoutC>>) {
+    fn system_c(_: SystemBus, q: Wish<(), &mut Data, Without<WithoutC>>) {
         for data in q.iter() {
             data.2 += 1;
         }

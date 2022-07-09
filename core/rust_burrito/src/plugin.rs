@@ -1,8 +1,9 @@
 use super::{
     component::Component,
+    entity::EntityBus,
     event::{Event, EventBus},
     resource::{Resource, ResourceBus},
-    system::{SystemArgs, SystemFunction},
+    system::{SystemBus, SystemFunction},
     wish::{Wish, WishAccesses, WishEvent, WishFilters},
 };
 use mewo_ecs::{
@@ -65,16 +66,16 @@ impl PluginBuilder {
             WA::accesses(),
             WF::filters(),
             Box::new(
-                move |ev, ev_insert, rc_modify, entity_transformer, galaxy, akid| {
+                move |ev, ev_insert, rcmgr, rc_modify, entity_transformer, galaxy, akid| {
                     let amgr = galaxy.get_archetype_manager();
                     let ctymgr = galaxy.get_component_type_manager();
                     let count = amgr.get_access_count(akid);
                     if Wish::<WE, WA, WF>::is_empty() {
                         (function)(
-                            SystemArgs::create(
+                            SystemBus::create(
+                                EntityBus::create(entity_transformer),
                                 EventBus::create(ev_insert),
-                                ResourceBus::create(rc_modify),
-                                entity_transformer,
+                                ResourceBus::create(rcmgr, rc_modify),
                             ),
                             Wish::<WE, WA, WF>::create(ev, ctymgr, None),
                         );
@@ -86,10 +87,10 @@ impl PluginBuilder {
                                     let wish =
                                         Wish::<WE, WA, WF>::create(ev, ctymgr, Some(&access));
                                     (function)(
-                                        SystemArgs::create(
+                                        SystemBus::create(
+                                            EntityBus::create(entity_transformer),
                                             EventBus::create(ev_insert),
-                                            ResourceBus::create(rc_modify),
-                                            entity_transformer,
+                                            ResourceBus::create(rcmgr, rc_modify),
                                         ),
                                         wish,
                                     );

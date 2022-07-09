@@ -17,7 +17,7 @@ pub struct TermResizeEvent {
 }
 impl Event for TermResizeEvent {}
 
-pub fn term_event(mut args: SA, _wish: Wish<(), (), ()>) {
+pub fn term_event(mut sb: SystemBus, _: Wish<(), (), ()>) {
     let mut ev = std::mem::MaybeUninit::uninit();
     let ev = unsafe {
         //  60fps right?
@@ -30,14 +30,14 @@ pub fn term_event(mut args: SA, _wish: Wish<(), (), ()>) {
     };
     match ev.etype {
         TB_EVENT_KEY => {
-            args.events.event(TermKeyEvent {
+            sb.events.event(TermKeyEvent {
                 unicode: ev.ch,
                 modifier: ev.emod,
                 key: ev.key,
             });
         }
         TB_EVENT_RESIZE => {
-            args.events.event(TermResizeEvent { w: ev.w, h: ev.y });
+            sb.events.event(TermResizeEvent { w: ev.w, h: ev.y });
         }
         _ => {}
     }

@@ -58,9 +58,9 @@ position starts at the top left
 └────┘
 */
 
-pub fn term_render(_args: SA, wish: Wish<(), &TermQuad, ()>) {
+pub fn term_render(_: SystemBus, w: Wish<(), &TermQuad, ()>) {
     unsafe { tb_clear() };
-    for quad in wish.iter() {
+    for quad in w.iter() {
         match quad.qtype {
             TermQuadType::Dot => unsafe {
                 tb_change_cell(

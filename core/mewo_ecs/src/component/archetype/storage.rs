@@ -72,7 +72,12 @@ impl ArchetypeStorage {
     //  For tests.
     pub fn get(&self, entity: Entity, cty: ComponentTypeId) -> Result<*const u8> {
         let coli = self.get_entity_column(entity)?;
-        if let Some(data) = self.datas.get(cty) {
+        let row = self
+            .component_tys
+            .get(cty)
+            .ok_or(RuntimeError::BadComponentType { ctyid: cty })?
+            .row;
+        if let Some(data) = self.datas.get(row) {
             Ok(data.get(coli).unwrap())
         } else {
             Err(RuntimeError::BadComponentType { ctyid: cty })
@@ -80,7 +85,10 @@ impl ArchetypeStorage {
     }
 
     pub fn get_iter(&self, cty: ComponentTypeId) -> Result<*const u8> {
-        if let Some(data) = self.datas.get(cty) {
+        let cty_info = self.component_tys.get(cty);
+        assert!(cty_info.is_some());
+        let row = cty_info.unwrap().row;
+        if let Some(data) = self.datas.get(row) {
             Ok(data.ptr())
         } else {
             Err(RuntimeError::BadComponentType { ctyid: cty })
@@ -127,7 +135,7 @@ impl ArchetypeStorage {
         {
             let &cty = cty;
             insert.insert(cty, data.get(coli).unwrap())?;
-            assert_eq!(data.swap_remove(coli), Some(()));
+            assert_eq!(data.take_swap_remove(coli), Some(()));
         }
         Ok(insert)
     }

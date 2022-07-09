@@ -7,13 +7,14 @@ use crate::{
     },
     error::*,
     event::{EventHash, EventInsert, EventOption},
-    resource::ResourceModify,
+    resource::{ResourceManager, ResourceModify},
 };
 
 type SystemFunction = Box<
     dyn Fn(
         Option<*const u8>,
         &mut EventInsert,
+        &ResourceManager,
         &mut ResourceModify,
         &mut EntityTransformer,
         &GalaxyRuntime,

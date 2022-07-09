@@ -13,8 +13,12 @@ impl TVal {
             size,
             val: unsafe {
                 let mut v = Vec::new();
-                v.resize(size, 0);
-                std::ptr::copy_nonoverlapping::<u8>(val, v.as_mut_ptr(), size);
+                if size == 0 {
+                    v.resize(1, 0);
+                } else {
+                    v.resize(size, 0);
+                    std::ptr::copy_nonoverlapping::<u8>(val, v.as_mut_ptr(), size);
+                }
                 v
             },
             drop,
@@ -46,4 +50,17 @@ fn test_tval() {
     let val = 89238929u128;
     let tval = TVal::create(size, &val as *const u128 as *const u8, ValueDrop::empty());
     unsafe { assert_eq!(val, *(tval.get() as *const u128),) };
+}
+
+#[test]
+fn test_unsized_tval() {
+    #[derive(Debug, PartialEq)]
+    struct MyStruct;
+    let size = std::mem::size_of::<MyStruct>();
+    let tval = TVal::create(
+        size,
+        &MyStruct as *const MyStruct as *const u8,
+        ValueDrop::empty(),
+    );
+    unsafe { assert_eq!(MyStruct, *(tval.get() as *const MyStruct)) };
 }

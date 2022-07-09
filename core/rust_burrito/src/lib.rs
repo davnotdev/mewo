@@ -1,4 +1,5 @@
 mod component;
+mod entity;
 mod event;
 mod plugin;
 mod resource;
@@ -10,13 +11,14 @@ mod wish_impl;
 mod test;
 
 pub use component::*;
+pub use entity::*;
 pub use event::*;
 pub use plugin::*;
 pub use resource::*;
 pub use system::*;
 pub use wish::*;
 
-pub use mewo_ecs::{Executor, Galaxy, StraightExecutor};
+pub use mewo_ecs::{Entity, Executor, Galaxy, StraightExecutor};
 
 use mewo_ecs::RawPlugin;
 

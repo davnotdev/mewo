@@ -53,6 +53,20 @@ impl DVec {
         Some(())
     }
 
+    pub fn take_swap_remove(&mut self, idx: usize) -> Option<()> {
+        if self.data_size != 0 {
+            for b in (0..self.data_size).rev() {
+                let &rm = self.data.get(self.data.len() - 1).unwrap();
+                *self.data.get_mut(idx * self.data_size + b).unwrap() = rm;
+                self.data.pop();
+            }
+        }
+        self.len -= 1;
+        Some(())
+        
+    }
+
+
     pub fn ptr(&self) -> *const u8 {
         self.data.as_ptr()
     }
@@ -69,7 +83,9 @@ impl DVec {
             let val = self.get(idx).unwrap();
             self.drop.call(val);
         }
-        self.data.clear();
+        if self.data_size != 0 {
+            self.data.clear();
+        }
         self.len = 0;
     }
 

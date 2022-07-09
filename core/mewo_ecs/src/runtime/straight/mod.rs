@@ -29,6 +29,7 @@ impl Executor for StraightExecutor {
                 EventOption::Startup => (system.function)(
                     None,
                     &mut ev_insert,
+                    &rcmgr,
                     &mut rc_modify,
                     &mut entity_transformer,
                     &galaxy,
@@ -70,6 +71,7 @@ impl Executor for StraightExecutor {
                             (system.function)(
                                 Some(ev),
                                 &mut self.ev_insert,
+                                &self.rcmgr,
                                 &mut self.rc_modify,
                                 &mut self.entity_transformer,
                                 galaxy,
@@ -83,6 +85,7 @@ impl Executor for StraightExecutor {
                         (system.function)(
                             None,
                             &mut self.ev_insert,
+                            &self.rcmgr,
                             &mut self.rc_modify,
                             &mut self.entity_transformer,
                             galaxy,
