@@ -25,9 +25,8 @@ impl Plugin for TermPlugin {
     }
 }
 
-fn term_startup(mut sb: SystemBus, _: Wish<Startup, (), ()>) {
-    sb.resources
-        .modify(|mut rcm| rcm.insert(TermContext::create()));
+fn term_startup(mut sb: SystemBus, _: Events<Startup>, _: Components<(), ()>) {
+    sb.resources.insert(TermContext::create());
     sb.events.event(TermInitEvent);
 }
 

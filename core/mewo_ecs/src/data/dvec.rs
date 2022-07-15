@@ -63,9 +63,7 @@ impl DVec {
         }
         self.len -= 1;
         Some(())
-        
     }
-
 
     pub fn ptr(&self) -> *const u8 {
         self.data.as_ptr()

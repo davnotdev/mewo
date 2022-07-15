@@ -58,9 +58,11 @@ position starts at the top left
 └────┘
 */
 
-pub fn term_render(_: SystemBus, w: Wish<(), &TermQuad, ()>) {
-    unsafe { tb_clear() };
-    for quad in w.iter() {
+pub fn term_render(sb: SystemBus, _: Events<()>, c: Components<&TermQuad, ()>) {
+    if sb.is_first() {
+        unsafe { tb_clear() };
+    }
+    for quad in c.iter() {
         match quad.qtype {
             TermQuadType::Dot => unsafe {
                 tb_change_cell(
@@ -164,5 +166,7 @@ pub fn term_render(_: SystemBus, w: Wish<(), &TermQuad, ()>) {
             },
         }
     }
-    unsafe { tb_present() }
+    if sb.is_last() {
+        unsafe { tb_present() }
+    }
 }

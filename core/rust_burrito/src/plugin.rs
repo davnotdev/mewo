@@ -2,9 +2,11 @@ use super::{
     component::Component,
     entity::EntityBus,
     event::{Event, EventBus},
+    params::{
+        ComponentAccesses, ComponentFilters, Components, EventAccess, Events, SystemFunction,
+    },
     resource::{Resource, ResourceBus},
-    system::{SystemBus, SystemFunction},
-    wish::{Wish, WishAccesses, WishEvent, WishFilters},
+    system::SystemBus,
 };
 use mewo_ecs::{
     ComponentTypeEntry, EventTypeEntry, RawPlugin, ResourceTypeEntry, SystemBuilder, ValueClone,
@@ -54,52 +56,30 @@ impl PluginBuilder {
         self
     }
 
-    pub fn sys<WE, WA, WF>(self, function: SystemFunction<WE, WA, WF>) -> Self
+    pub fn sys<EA, CA, CF>(self, function: SystemFunction<EA, CA, CF>) -> Self
     where
-        WE: 'static + WishEvent,
-        WA: 'static + WishAccesses,
-        WF: 'static + WishFilters,
+        EA: 'static + EventAccess,
+        CA: 'static + ComponentAccesses,
+        CF: 'static + ComponentFilters,
     {
         self.raw_sys(SystemBuilder::create(
-            std::any::type_name::<SystemFunction<WE, WA, WF>>().to_string(),
-            WE::hash(),
-            WA::accesses(),
-            WF::filters(),
+            std::any::type_name::<SystemFunction<EA, CA, CF>>().to_string(),
+            EA::hash(),
+            CA::accesses(),
+            CF::filters(),
             Box::new(
-                move |ev, ev_insert, rcmgr, rc_modify, entity_transformer, galaxy, akid| {
-                    let amgr = galaxy.get_archetype_manager();
-                    let ctymgr = galaxy.get_component_type_manager();
-                    let count = amgr.get_access_count(akid);
-                    if Wish::<WE, WA, WF>::is_empty() {
-                        (function)(
-                            SystemBus::create(
-                                EntityBus::create(entity_transformer),
-                                EventBus::create(ev_insert),
-                                ResourceBus::create(rcmgr, rc_modify),
-                            ),
-                            Wish::<WE, WA, WF>::create(ev, ctymgr, None),
-                        );
-                    } else {
-                        //  Would be nice if you could move to the next access instead of spinning.
-                        for idx in 0..count {
-                            loop {
-                                if let Some(access) = amgr.try_access(akid, idx).unwrap() {
-                                    let wish =
-                                        Wish::<WE, WA, WF>::create(ev, ctymgr, Some(&access));
-                                    (function)(
-                                        SystemBus::create(
-                                            EntityBus::create(entity_transformer),
-                                            EventBus::create(ev_insert),
-                                            ResourceBus::create(rcmgr, rc_modify),
-                                        ),
-                                        wish,
-                                    );
-                                    break;
-                                }
-                                std::hint::spin_loop();
-                            }
-                        }
-                    }
+                move |galaxy, ev, rcmgr, ev_insert, transformer, access, idx, count| {
+                    (function)(
+                        SystemBus::create(
+                            EntityBus::create(transformer),
+                            EventBus::create(ev_insert),
+                            ResourceBus::create(rcmgr),
+                            idx,
+                            count,
+                        ),
+                        Events::create(ev),
+                        Components::create(galaxy.get_component_type_manager(), &access),
+                    );
                 },
             ),
         ))
@@ -132,10 +112,8 @@ impl PluginBuilder {
 
     pub fn resource<R: Resource>(self) -> Self {
         self.raw_resource(ResourceTypeEntry {
-            size: R::resource_size(),
             name: R::resource_name(),
             hash: R::resource_hash(),
-            drop: ValueDrop::create(R::resource_drop_callback()),
         })
     }
 

@@ -1,34 +1,39 @@
-use super::{
-    component::Component,
-    event::Event,
-    wish::{Startup, WishAccess, WishAccesses, WishEvent, WishFilter, WishFilters},
-};
-use mewo_ecs::{ComponentHash, ComponentQueryAccessType, EventHash, EventOption};
+use super::*;
 
-//  TODO: use macros silly!
-
-impl WishEvent for () {
+impl EventAccess for () {
     fn hash() -> EventOption<EventHash> {
         EventOption::Update
     }
-}
 
-impl WishEvent for Startup {
-    fn hash() -> EventOption<EventHash> {
-        EventOption::Startup
+    fn data(_: &Option<*const u8>) -> &Self {
+        &()
     }
 }
 
-impl<E> WishEvent for E
+impl EventAccess for Startup {
+    fn hash() -> EventOption<EventHash> {
+        EventOption::Startup
+    }
+
+    fn data(_: &Option<*const u8>) -> &Self {
+        &Startup
+    }
+}
+
+impl<E> EventAccess for E
 where
     E: Event,
 {
     fn hash() -> EventOption<EventHash> {
         EventOption::Event(E::event_hash())
     }
+
+    fn data(ev: &Option<*const u8>) -> &Self {
+        unsafe { (ev.unwrap() as *const E).as_ref().unwrap() }
+    }
 }
 
-impl<C> WishAccess for &C
+impl<C> ComponentAccess for &C
 where
     C: Component,
 {
@@ -50,7 +55,7 @@ where
     }
 }
 
-impl<C> WishAccess for &mut C
+impl<C> ComponentAccess for &mut C
 where
     C: Component,
 {
@@ -72,12 +77,12 @@ where
     }
 }
 
-impl<C> WishAccess for Option<&C>
+impl<C> ComponentAccess for Option<&C>
 where
     C: Component,
 {
     fn access() -> (ComponentHash, ComponentQueryAccessType) {
-        (C::component_hash(), ComponentQueryAccessType::Write)
+        (C::component_hash(), ComponentQueryAccessType::OptionRead)
     }
 
     fn data(idx: usize, data: &Option<*const u8>) -> Self {
@@ -93,12 +98,12 @@ where
     }
 }
 
-impl<C> WishAccess for Option<&mut C>
+impl<C> ComponentAccess for Option<&mut C>
 where
     C: Component,
 {
     fn access() -> (ComponentHash, ComponentQueryAccessType) {
-        (C::component_hash(), ComponentQueryAccessType::Write)
+        (C::component_hash(), ComponentQueryAccessType::OptionWrite)
     }
 
     fn data(idx: usize, data: &Option<*const u8>) -> Self {
@@ -114,7 +119,7 @@ where
     }
 }
 
-impl WishAccesses for () {
+impl ComponentAccesses for () {
     fn accesses() -> Vec<(ComponentHash, ComponentQueryAccessType)> {
         vec![]
     }
@@ -128,9 +133,9 @@ impl WishAccesses for () {
     }
 }
 
-impl<C0> WishAccesses for C0
+impl<C0> ComponentAccesses for C0
 where
-    C0: WishAccess,
+    C0: ComponentAccess,
 {
     fn accesses() -> Vec<(ComponentHash, ComponentQueryAccessType)> {
         vec![C0::access()]
@@ -145,10 +150,10 @@ where
     }
 }
 
-impl<C0, C1> WishAccesses for (C0, C1)
+impl<C0, C1> ComponentAccesses for (C0, C1)
 where
-    C0: WishAccess,
-    C1: WishAccess,
+    C0: ComponentAccess,
+    C1: ComponentAccess,
 {
     fn accesses() -> Vec<(ComponentHash, ComponentQueryAccessType)> {
         vec![C0::access(), C1::access()]
@@ -166,27 +171,45 @@ where
     }
 }
 
-impl WishFilters for () {
+impl<C> ComponentFilter for With<C>
+where
+    C: Component,
+{
+    fn filter() -> (ComponentHash, ComponentQueryFilterType) {
+        (C::component_hash(), ComponentQueryFilterType::With)
+    }
+}
+
+impl<C> ComponentFilter for Without<C>
+where
+    C: Component,
+{
+    fn filter() -> (ComponentHash, ComponentQueryFilterType) {
+        (C::component_hash(), ComponentQueryFilterType::Without)
+    }
+}
+
+impl ComponentFilters for () {
     fn filters() -> Vec<(ComponentHash, mewo_ecs::ComponentQueryFilterType)> {
         Vec::new()
     }
 }
 
-impl<WF0> WishFilters for WF0
+impl<CF0> ComponentFilters for CF0
 where
-    WF0: WishFilter,
+    CF0: ComponentFilter,
 {
     fn filters() -> Vec<(ComponentHash, mewo_ecs::ComponentQueryFilterType)> {
-        vec![WF0::filter()]
+        vec![CF0::filter()]
     }
 }
 
-impl<WF0, WF1> WishFilters for (WF0, WF1)
+impl<CF0, CF1> ComponentFilters for (CF0, CF1)
 where
-    WF0: WishFilter,
-    WF1: WishFilter,
+    CF0: ComponentFilter,
+    CF1: ComponentFilter,
 {
     fn filters() -> Vec<(ComponentHash, mewo_ecs::ComponentQueryFilterType)> {
-        vec![WF0::filter(), WF1::filter()]
+        vec![CF0::filter(), CF1::filter()]
     }
 }

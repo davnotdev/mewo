@@ -1,11 +1,11 @@
 mod component;
 mod entity;
 mod event;
+mod params;
 mod plugin;
 mod resource;
 mod system;
-mod wish;
-mod wish_impl;
+//  mod wish_impl;
 
 #[cfg(test)]
 mod test;
@@ -13,10 +13,10 @@ mod test;
 pub use component::*;
 pub use entity::*;
 pub use event::*;
+pub use params::*;
 pub use plugin::*;
 pub use resource::*;
 pub use system::*;
-pub use wish::*;
 
 pub use mewo_ecs::{Entity, Executor, Galaxy, StraightExecutor};
 

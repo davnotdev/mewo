@@ -1,4 +1,4 @@
-use super::{component_type::ComponentTypeManager, ComponentHash, ComponentTypeId, Entity};
+use super::{component::ComponentTypeManager, ComponentHash, ComponentTypeId, Entity};
 use crate::{data::TVal, error::*};
 
 pub struct EntityTransformer {

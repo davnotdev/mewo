@@ -1,4 +1,5 @@
-use super::{locker::LockState, storage::ArchetypeStorage, *};
+use super::{storage::ArchetypeStorage, *};
+use crate::data::LockState;
 
 pub struct ArchetypeAccessKeyManager {
     keys: Vec<(ArchetypeAccessKeyEntry, ComponentGroupQuery)>,
@@ -106,7 +107,7 @@ pub struct ArchetypeAccess<'amgr> {
 }
 
 impl<'amgr> ArchetypeAccess<'amgr> {
-    pub fn get_iter(&self, ctyid: ComponentTypeId) -> Result<*const u8> {
+    pub fn get_iter(&self, ctyid: ComponentTypeId) -> Result<Option<*const u8>> {
         self.storage.get_iter(ctyid)
     }
 
@@ -150,9 +151,7 @@ impl ArchetypeManager {
                     let group = self.cgmgr.get(gid).unwrap();
                     for &cty in group.get() {
                         if let Some(&lock_state) = lock_map.get(cty) {
-                            while !storage.try_lock_component(cty, lock_state)? {
-                                std::hint::spin_loop()
-                            }
+                            storage.lock_component(cty, lock_state)?;
                             self.lock_count.fetch_add(1, Ordering::SeqCst);
                         }
                     }

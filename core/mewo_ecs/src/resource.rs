@@ -1,5 +1,5 @@
 use super::{
-    data::{TVal, ValueDrop},
+    data::{CentralLock, TVal},
     error::*,
     HashType,
 };
@@ -7,21 +7,32 @@ use std::collections::HashMap;
 
 pub type ResourceHash = HashType;
 
+#[derive(Clone, Copy)]
+pub enum ResourceQueryAccessType {
+    Read,
+    Write,
+}
+
 //  Similar to Events, resources have no need to be cloned.
 pub struct ResourceTypeEntry {
-    pub size: usize,
     pub name: String,
     pub hash: ResourceHash,
-    pub drop: ValueDrop,
+}
+
+struct Resource {
+    entry: ResourceTypeEntry,
+    val: Option<TVal>,
 }
 
 pub struct ResourceManager {
-    hash_map: HashMap<ResourceHash, (ResourceTypeEntry, Option<TVal>)>,
+    lock: CentralLock,
+    hash_map: HashMap<ResourceHash, Resource>,
 }
 
 impl ResourceManager {
     pub fn create() -> Self {
         ResourceManager {
+            lock: CentralLock::create(),
             hash_map: HashMap::new(),
         }
     }
@@ -30,7 +41,8 @@ impl ResourceManager {
         if self.hash_map.contains_key(&entry.hash) {
             Err(RuntimeError::DuplicateResourceTypeHash { hash: entry.hash })?
         }
-        self.hash_map.insert(entry.hash, (entry, None));
+        self.hash_map
+            .insert(entry.hash, Resource { entry, val: None });
         Ok(())
     }
 
@@ -39,87 +51,43 @@ impl ResourceManager {
             .hash_map
             .get(&hash)
             .ok_or(RuntimeError::BadResourceTypeHash { hash })?
-            .0)
+            .entry)
     }
 
-    pub fn get_resource(&self, hash: ResourceHash) -> Result<Option<&TVal>> {
-        Ok(self
+    pub fn locked_get(&self, hash: ResourceHash) -> Result<&Option<TVal>> {
+        Ok(&self
             .hash_map
             .get(&hash)
             .ok_or(RuntimeError::BadResourceTypeHash { hash })?
-            .1
-            .as_ref())
+            .val)
     }
 
-    pub fn get_mut_resource(&mut self, hash: ResourceHash) -> Result<Option<&mut TVal>> {
-        Ok(self
-            .hash_map
+    fn unsafe_get_mut_map(&self) -> &mut HashMap<ResourceHash, Resource> {
+        unsafe {
+            &mut *(&self.hash_map as *const HashMap<ResourceHash, Resource>
+                as *mut HashMap<ResourceHash, Resource>)
+        }
+    }
+
+    pub fn locked_get_mut(&self, hash: ResourceHash) -> Result<&mut Option<TVal>> {
+        Ok(&mut self
+            .unsafe_get_mut_map()
             .get_mut(&hash)
             .ok_or(RuntimeError::BadResourceTypeHash { hash })?
-            .1
-            .as_mut())
+            .val)
     }
 
-    pub fn insert(&mut self, hash: ResourceHash, val: TVal) -> Result<()> {
-        let (_, current) = self
-            .hash_map
-            .get_mut(&hash)
-            .ok_or(RuntimeError::BadResourceTypeHash { hash })?;
-        *current = Some(val);
-        Ok(())
-    }
-
-    pub fn remove(&mut self, hash: ResourceHash) -> Result<()> {
-        let (_, current) = self
-            .hash_map
-            .get_mut(&hash)
-            .ok_or(RuntimeError::BadResourceTypeHash { hash })?;
-        *current = None;
-        Ok(())
-    }
-
-    pub fn flush(&mut self, modifies: &mut ResourceModify) {
-        for modify in modifies.get() {
-            modify.call(self);
-        }
-        modifies.flush();
-    }
-}
-
-pub struct ResourceModifyFunction<F>(pub F);
-pub trait GenericResourceModifyFunction {
-    fn call(&self, rcmgr: &mut ResourceManager);
-}
-
-impl<F> GenericResourceModifyFunction for ResourceModifyFunction<F>
-where
-    F: Fn(&mut ResourceManager) -> (),
-{
-    fn call(&self, rcmgr: &mut ResourceManager) {
-        (self.0)(rcmgr)
-    }
-}
-
-pub struct ResourceModify {
-    modifies: Vec<Box<dyn GenericResourceModifyFunction>>,
-}
-
-impl ResourceModify {
-    pub fn create() -> Self {
-        ResourceModify {
-            modifies: Vec::new(),
+    pub fn lock(&self, rcqat: ResourceQueryAccessType) {
+        match rcqat {
+            ResourceQueryAccessType::Read => self.lock.lock_read(),
+            ResourceQueryAccessType::Write => self.lock.lock_write(),
         }
     }
 
-    pub fn insert(&mut self, f: Box<dyn GenericResourceModifyFunction>) {
-        self.modifies.push(f);
-    }
-
-    pub(self) fn get(&self) -> &Vec<Box<dyn GenericResourceModifyFunction>> {
-        &self.modifies
-    }
-
-    fn flush(&mut self) {
-        self.modifies.clear();
+    pub fn unlock(&self, rcqat: ResourceQueryAccessType) {
+        match rcqat {
+            ResourceQueryAccessType::Read => self.lock.unlock_read(),
+            ResourceQueryAccessType::Write => self.lock.unlock_write(),
+        };
     }
 }

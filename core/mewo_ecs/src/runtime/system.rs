@@ -1,24 +1,25 @@
 use super::galaxy::GalaxyRuntime;
 use crate::{
     component::{
-        ArchetypeAccessKey, ArchetypeManager, ComponentGroupQuery, ComponentHash,
+        ArchetypeAccess, ArchetypeAccessKey, ArchetypeManager, ComponentGroupQuery, ComponentHash,
         ComponentQueryAccessType, ComponentQueryFilterType, ComponentTypeId, ComponentTypeManager,
         EntityTransformer,
     },
     error::*,
     event::{EventHash, EventInsert, EventOption},
-    resource::{ResourceManager, ResourceModify},
+    resource::ResourceManager,
 };
 
 type SystemFunction = Box<
     dyn Fn(
-        Option<*const u8>,
-        &mut EventInsert,
-        &ResourceManager,
-        &mut ResourceModify,
-        &mut EntityTransformer,
         &GalaxyRuntime,
-        ArchetypeAccessKey,
+        Option<*const u8>,
+        &ResourceManager,
+        &mut EventInsert,
+        &mut EntityTransformer,
+        Option<ArchetypeAccess>,
+        usize,
+        usize,
     ),
 >;
 
@@ -35,15 +36,15 @@ impl SystemBuilder {
     pub fn create(
         name: String,
         event: EventOption<EventHash>,
-        accesses: Vec<(u64, ComponentQueryAccessType)>,
-        filters: Vec<(u64, ComponentQueryFilterType)>,
+        component_accesses: Vec<(ComponentHash, ComponentQueryAccessType)>,
+        component_filters: Vec<(ComponentHash, ComponentQueryFilterType)>,
         function: SystemFunction,
     ) -> SystemBuilder {
         SystemBuilder {
             name,
             plugin_name: None,
-            component_accesses: accesses,
-            component_filters: filters,
+            component_accesses,
+            component_filters,
             event,
             function,
         }
@@ -100,4 +101,40 @@ pub struct System {
     pub archetype_access_key: ArchetypeAccessKey,
     pub event: EventOption<EventHash>,
     pub function: SystemFunction,
+}
+
+impl System {
+    pub fn run(
+        &self,
+        galaxy: &GalaxyRuntime,
+        ev: Option<*const u8>,
+        rcmgr: &ResourceManager,
+        ev_insert: &mut EventInsert,
+        transformer: &mut EntityTransformer,
+    ) {
+        let akid = self.archetype_access_key;
+        let amgr = galaxy.get_archetype_manager();
+        let count = amgr.get_access_count(akid);
+        for idx in 0..count {
+            loop {
+                if let Some(access) = amgr.try_access(akid, idx).unwrap() {
+                    (self.function)(
+                        galaxy,
+                        ev,
+                        rcmgr,
+                        ev_insert,
+                        transformer,
+                        Some(access),
+                        idx,
+                        count,
+                    );
+                    break;
+                }
+                std::hint::spin_loop();
+            }
+        }
+        if count == 0 {
+            (self.function)(galaxy, ev, rcmgr, ev_insert, transformer, None, 0, 1);
+        }
+    }
 }

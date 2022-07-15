@@ -1,5 +1,5 @@
 use super::super::{
-    component_type::ComponentTypeEntry,
+    component::ComponentTypeEntry,
     transform::{EntityModifyBuilder, EntityTransformBuilder},
 };
 use super::*;

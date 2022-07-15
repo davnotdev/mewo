@@ -1,9 +1,6 @@
-use super::{
-    locker::{LockState, Locker},
-    *,
-};
+use super::*;
 use crate::{
-    data::{DVec, SparseSet},
+    data::{DVec, IndividualLock, LockState, SparseSet},
     error::*,
 };
 
@@ -11,7 +8,7 @@ use crate::{
 #[derive(Debug)]
 struct ArchetypeStorageComponentEntry {
     row: usize,
-    locker: Locker,
+    locker: IndividualLock,
 }
 
 //  TODO row? coli? idx? Which is which? Even I don't down.
@@ -43,7 +40,7 @@ impl ArchetypeStorage {
                 ty,
                 ArchetypeStorageComponentEntry {
                     row: idx,
-                    locker: Locker::create(),
+                    locker: IndividualLock::create(),
                 },
             );
             storage.datas.push(DVec::create(entry.size, entry.drop));
@@ -52,9 +49,9 @@ impl ArchetypeStorage {
         Ok(storage)
     }
 
-    pub fn try_lock_component(&self, cty: ComponentTypeId, state: LockState) -> Result<bool> {
+    pub fn lock_component(&self, cty: ComponentTypeId, state: LockState) -> Result<()> {
         if let Some(ArchetypeStorageComponentEntry { locker, .. }) = self.component_tys.get(cty) {
-            Ok(locker.try_obtain_lock(state))
+            Ok(locker.lock(state))
         } else {
             Err(RuntimeError::BadComponentType { ctyid: cty })
         }
@@ -62,14 +59,14 @@ impl ArchetypeStorage {
 
     pub fn unlock_component(&self, cty: ComponentTypeId, state: LockState) -> Result<()> {
         if let Some(ArchetypeStorageComponentEntry { locker, .. }) = self.component_tys.get(cty) {
-            locker.release_lock(state);
-            Ok(())
+            Ok(locker.unlock(state))
         } else {
             Err(RuntimeError::BadComponentType { ctyid: cty })
         }
     }
 
     //  For tests.
+    //  TODO Support Option queries.
     pub fn get(&self, entity: Entity, cty: ComponentTypeId) -> Result<*const u8> {
         let coli = self.get_entity_column(entity)?;
         let row = self
@@ -84,14 +81,16 @@ impl ArchetypeStorage {
         }
     }
 
-    pub fn get_iter(&self, cty: ComponentTypeId) -> Result<*const u8> {
-        let cty_info = self.component_tys.get(cty);
-        assert!(cty_info.is_some());
-        let row = cty_info.unwrap().row;
-        if let Some(data) = self.datas.get(row) {
-            Ok(data.ptr())
+    pub fn get_iter(&self, cty: ComponentTypeId) -> Result<Option<*const u8>> {
+        if let Some(cty_info) = self.component_tys.get(cty) {
+            let row = cty_info.row;
+            if let Some(data) = self.datas.get(row) {
+                Ok(Some(data.ptr()))
+            } else {
+                Err(RuntimeError::BadComponentType { ctyid: cty })
+            }
         } else {
-            Err(RuntimeError::BadComponentType { ctyid: cty })
+            Ok(None)
         }
     }
 

@@ -17,14 +17,14 @@ pub struct TermResizeEvent {
 }
 impl Event for TermResizeEvent {}
 
-pub fn term_event(mut sb: SystemBus, _: Wish<(), (), ()>) {
+pub fn term_event(mut sb: SystemBus, _: Events<()>, _: Components<(), ()>) {
     let mut ev = std::mem::MaybeUninit::uninit();
     let ev = unsafe {
         //  60fps right?
         let res = tb_peek_event(ev.as_mut_ptr(), 16);
         match res {
             0 => return,
-            -1 => std::process::exit(1),
+            -1 => panic!(),
             _ => ev.assume_init(),
         }
     };

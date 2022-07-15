@@ -1,5 +1,28 @@
 use std::sync::atomic::{AtomicU8, Ordering};
 
+#[derive(Debug)]
+pub struct IndividualLock {
+    lock: RWLock,
+}
+
+impl IndividualLock {
+    pub fn create() -> Self {
+        IndividualLock {
+            lock: RWLock::create(),
+        }
+    }
+
+    pub fn lock(&self, state: LockState) {
+        while !self.lock.try_obtain_lock(state) {
+            std::hint::spin_loop();
+        }
+    }
+
+    pub fn unlock(&self, state: LockState) {
+        self.lock.release_lock(state);
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum LockState {
     Shared,
@@ -13,15 +36,16 @@ type AtomicLockState = AtomicU8;
 const OPEN_STATE: u8 = 0u8;
 const EXCLUSIVE_STATE: u8 = u8::MAX;
 
+//  A generic Read Write Lock.
 #[derive(Debug)]
-pub struct Locker {
+pub struct RWLock {
     lock: AtomicLockState,
 }
 
 //  All these Orderings may be suboptimal ¯\_(ツ)_/¯
-impl Locker {
+impl RWLock {
     pub fn create() -> Self {
-        Locker {
+        RWLock {
             lock: AtomicU8::new(OPEN_STATE),
         }
     }
@@ -42,14 +66,14 @@ impl Locker {
             }
             LockState::Shared => {
                 //  https://stackoverflow.com/questions/47753528/how-to-compare-and-increment-an-atomic-variable
-                let val = self.lock.load(Ordering::SeqCst);
+                let val = self.lock.load(Ordering::Acquire);
                 let new = match val {
                     EXCLUSIVE_STATE => return false,
                     _ => val + 1,
                 };
                 if let Ok(_) =
                     self.lock
-                        .compare_exchange(val, new, Ordering::AcqRel, Ordering::Relaxed)
+                        .compare_exchange(val, new, Ordering::Release, Ordering::Relaxed)
                 {
                     true
                 } else {
@@ -62,16 +86,16 @@ impl Locker {
     //  Will absolutely corrupt lock if used inappropriately.
     pub fn release_lock(&self, lock_state: LockState) {
         match lock_state {
-            LockState::Shared => self.lock.fetch_sub(1, Ordering::Relaxed),
-            LockState::Exclusive => self.lock.fetch_add(1, Ordering::Relaxed),
+            LockState::Shared => self.lock.fetch_sub(1, Ordering::AcqRel),
+            LockState::Exclusive => self.lock.fetch_add(1, Ordering::AcqRel),
         };
     }
 }
 
 //  Doesn't test for race conditions
 #[test]
-fn test_locker() {
-    let locker = Locker::create();
+fn test_rwlock() {
+    let locker = RWLock::create();
 
     assert_eq!(locker.try_obtain_lock(LockState::Exclusive), true);
     assert_eq!(locker.try_obtain_lock(LockState::Exclusive), false);

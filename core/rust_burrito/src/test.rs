@@ -57,26 +57,26 @@ fn test_rust_burrito_og() {
         }
     }
 
-    fn startup_system(mut sb: SystemBus, _q: Wish<Startup, (), ()>) {
+    fn startup_system(mut sb: SystemBus, _: Events<Startup>, _: Components<(), ()>) {
         sb.entities.spawn().insert(Data::default());
         sb.entities.spawn().insert(Data::default()).insert(WithC);
         sb.entities.spawn().insert(Data::default()).insert(WithoutC);
     }
 
-    fn system_a(_: SystemBus, q: Wish<(), &mut Data, ()>) {
-        for data in q.iter() {
+    fn system_a(_: SystemBus, _: Events<()>, c: Components<&mut Data, ()>) {
+        for data in c.iter() {
             data.0 += 1;
         }
     }
 
-    fn system_b(_: SystemBus, q: Wish<(), &mut Data, With<WithC>>) {
-        for data in q.iter() {
+    fn system_b(_: SystemBus, _: Events<()>, c: Components<&mut Data, With<WithC>>) {
+        for data in c.iter() {
             data.1 += 1;
         }
     }
 
-    fn system_c(_: SystemBus, q: Wish<(), &mut Data, Without<WithoutC>>) {
-        for data in q.iter() {
+    fn system_c(_: SystemBus, _: Events<()>, c: Components<&mut Data, Without<WithoutC>>) {
+        for data in c.iter() {
             data.2 += 1;
         }
     }
@@ -118,6 +118,6 @@ fn test_rust_burrito_og() {
 
     //  Wait, why aren't the entities in order??
     //  Swap remove is why.
-    //  `while let Some(system) = systems.swap_remove(0) { .. }`
+    //  `while let Some(entity) = transform.entites.swap_remove(0) { .. }`
     //  Let the above pseudo-code sink in.
 }

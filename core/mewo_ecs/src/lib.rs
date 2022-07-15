@@ -15,9 +15,7 @@ pub use component::{
 };
 pub use data::{CloneFunction, DropFunction, TVal, ValueClone, ValueDrop};
 pub use event::{EventHash, EventInsert, EventOption, EventTypeEntry};
-pub use resource::{
-    ResourceHash, ResourceManager, ResourceModify, ResourceModifyFunction, ResourceTypeEntry,
-};
+pub use resource::{ResourceHash, ResourceManager, ResourceQueryAccessType, ResourceTypeEntry};
 pub use runtime::{
     Executor, Galaxy, RawPlugin, RawPluginBundle, StraightExecutor, System, SystemBuilder,
 };

@@ -1,9 +1,10 @@
-use mewo_ecs::{
-    DropFunction, ResourceHash, ResourceManager, ResourceModify, ResourceModifyFunction, TVal,
-    ValueDrop,
+use super::params::Resources;
+use mewo_ecs::{DropFunction, ResourceHash, ResourceManager, TVal, ValueDrop};
+use std::{
+    collections::hash_map::DefaultHasher,
+    hash::{Hash, Hasher},
+    marker::PhantomData,
 };
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
 
 pub trait Resource: Sized + 'static {
     fn resource_name() -> String {
@@ -29,71 +30,80 @@ pub trait Resource: Sized + 'static {
     }
 }
 
-pub struct ResourceBus<'rcmgr, 'rcmodify> {
-    rcmgr: &'rcmgr ResourceManager,
-    modify: &'rcmodify mut ResourceModify,
+//  Q: Why is getting a resource considered &mut.
+//  A: Well, this somewhat prevents you from taking a &mut R0 twice, and it also encourages you to
+//  use multiple gets meaning more unlocks for other threads. However, the downside is that it may
+//  be annoying as hell. Question for you. Should we keep this?
+
+pub struct ResourceBus<'exec> {
+    rcmgr: &'exec ResourceManager,
 }
 
-impl<'rcmgr, 'rcmodify> ResourceBus<'rcmgr, 'rcmodify> {
-    pub fn create(rcmgr: &'rcmgr ResourceManager, modify: &'rcmodify mut ResourceModify) -> Self {
-        ResourceBus { rcmgr, modify }
+impl<'exec> ResourceBus<'exec> {
+    pub fn create(rcmgr: &'exec ResourceManager) -> Self {
+        ResourceBus { rcmgr }
     }
 
-    pub fn get<R: Resource>(&self) -> Option<&R> {
-        self.rcmgr
-            .get_resource(R::resource_hash())
-            .unwrap()
-            .map(|val| unsafe { &*(val.get() as *const R) })
-    }
-
-    pub fn modify<F>(&mut self, f: F)
+    pub fn get<RS>(&mut self) -> ResourceBurrito<'exec, '_, RS>
     where
-        F: Fn(ResourceModifyInstance) + 'static,
+        RS: Resources,
     {
-        self.modify.insert(Box::new(ResourceModifyFunction(
-            move |rcmgr: &mut ResourceManager| (f)(ResourceModifyInstance::create(rcmgr)),
-        )))
+        RS::lock(self.rcmgr);
+        ResourceBurrito::<RS>::create(self)
+    }
+
+    pub fn insert<R>(&self, rc: R) -> &Self
+    where
+        R: Resource,
+    {
+        self.rcmgr.lock(mewo_ecs::ResourceQueryAccessType::Write);
+        *self.rcmgr.locked_get_mut(R::resource_hash()).unwrap() = Some(TVal::create(
+            R::resource_size(),
+            &rc as *const R as *const u8,
+            ValueDrop::create(R::resource_drop_callback()),
+        ));
+        self.rcmgr.unlock(mewo_ecs::ResourceQueryAccessType::Write);
+        std::mem::forget(rc);
+        self
+    }
+
+    pub fn remove<R>(&self) -> &Self
+    where
+        R: Resource,
+    {
+        self.rcmgr.lock(mewo_ecs::ResourceQueryAccessType::Write);
+        *self.rcmgr.locked_get_mut(R::resource_hash()).unwrap() = None;
+        self.rcmgr.unlock(mewo_ecs::ResourceQueryAccessType::Write);
+        self
     }
 }
 
-pub struct ResourceModifyInstance<'rcmgr> {
-    rcmgr: &'rcmgr mut ResourceManager,
+pub struct ResourceBurrito<'exec, 'rbus, RS: Resources> {
+    rbus: &'rbus mut ResourceBus<'exec>,
+    phantom: PhantomData<RS>,
 }
 
-impl<'rcmgr> ResourceModifyInstance<'rcmgr> {
-    pub fn create(rcmgr: &'rcmgr mut ResourceManager) -> Self {
-        ResourceModifyInstance { rcmgr }
+impl<'exec, 'rbus, RS> ResourceBurrito<'exec, 'rbus, RS>
+where
+    RS: Resources,
+{
+    pub fn create(rbus: &'rbus mut ResourceBus<'exec>) -> Self {
+        ResourceBurrito {
+            rbus,
+            phantom: PhantomData,
+        }
     }
 
-    pub fn get<R: Resource>(&self) -> Option<&R> {
-        self.rcmgr
-            .get_resource(R::resource_hash())
-            .unwrap()
-            .map(|val| unsafe { &*(val.get() as *const R) })
+    pub fn get(&mut self) -> Option<RS> {
+        RS::get(self.rbus.rcmgr)
     }
+}
 
-    pub fn get_mut<R: Resource>(&mut self) -> Option<&mut R> {
-        self.rcmgr
-            .get_mut_resource(R::resource_hash())
-            .unwrap()
-            .map(|val| unsafe { &mut *(val.get() as *mut R) })
-    }
-
-    pub fn insert<R: Resource>(&mut self, r: R) {
-        self.rcmgr
-            .insert(
-                R::resource_hash(),
-                TVal::create(
-                    R::resource_size(),
-                    &r as *const R as *const u8,
-                    ValueDrop::create(R::resource_drop_callback()),
-                ),
-            )
-            .unwrap();
-        std::mem::forget(r);
-    }
-
-    pub fn remove<R: Resource>(&mut self) {
-        self.rcmgr.remove(R::resource_hash()).unwrap();
+impl<'exec, 'rbus, RS> Drop for ResourceBurrito<'exec, 'rbus, RS>
+where
+    RS: Resources,
+{
+    fn drop(&mut self) {
+        RS::unlock(self.rbus.rcmgr)
     }
 }

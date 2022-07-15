@@ -1,14 +1,13 @@
 mod access;
 mod archetype;
-mod locker;
 mod storage;
 
 #[cfg(test)]
 mod test;
 
 use super::{
+    component::ComponentTypeManager,
     component_group::{ComponentGroup, ComponentGroupManager},
-    component_type::ComponentTypeManager,
     query::{ComponentGroupQuery, ComponentQueryAccessType, ComponentQueryFilterType},
     transform::{EntityModify, EntityTransform},
     ComponentGroupId, ComponentTypeId, Entity,
@@ -30,7 +29,7 @@ pub struct ArchetypeManager {
 impl ArchetypeManager {
     //  https://areweyeetyet.rs/    ~ Proof Rust is the best language.
     fn yeet_locked(&self) -> Result<()> {
-        if self.lock_count.load(Ordering::Relaxed) == 0 {
+        if self.lock_count.load(Ordering::Acquire) == 0 {
             Ok(())
         } else {
             Err(RuntimeError::ArchetypeStorageLocked)
