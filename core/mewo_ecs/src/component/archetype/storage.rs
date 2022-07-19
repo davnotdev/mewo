@@ -1,7 +1,7 @@
 use super::*;
 use crate::{
     data::{DVec, IndividualLock, LockState, SparseSet},
-    error::*,
+    unbug::prelude::*,
 };
 
 #[allow(dead_code)]
@@ -11,7 +11,7 @@ struct ArchetypeStorageComponentEntry {
     locker: IndividualLock,
 }
 
-//  TODO row? coli? idx? Which is which? Even I don't down.
+//  TODO row? coli? idx? Which is which? Even I don't know.
 
 #[derive(Debug)]
 pub struct ArchetypeStorage {
@@ -53,7 +53,20 @@ impl ArchetypeStorage {
         if let Some(ArchetypeStorageComponentEntry { locker, .. }) = self.component_tys.get(cty) {
             Ok(locker.lock(state))
         } else {
-            Err(RuntimeError::BadComponentType { ctyid: cty })
+            Err(InternalError {
+                line: line!(),
+                file: file!(),
+                dumps: vec![
+                    DebugDumpTargets::ArchetypeManager,
+                    DebugDumpTargets::ComponentTypeManager,
+                ],
+                ty: InternalErrorType::BadComponentType { ctyid: cty },
+                explain: Some(
+                    "
+                        This error should have been caught far earlier. 
+                        Perhaps storage transformation failed?",
+                ),
+            })
         }
     }
 
@@ -61,7 +74,20 @@ impl ArchetypeStorage {
         if let Some(ArchetypeStorageComponentEntry { locker, .. }) = self.component_tys.get(cty) {
             Ok(locker.unlock(state))
         } else {
-            Err(RuntimeError::BadComponentType { ctyid: cty })
+            Err(InternalError {
+                line: line!(),
+                file: file!(),
+                dumps: vec![
+                    DebugDumpTargets::ArchetypeManager,
+                    DebugDumpTargets::ComponentTypeManager,
+                ],
+                ty: InternalErrorType::BadComponentType { ctyid: cty },
+                explain: Some(
+                    "
+                        This error should have been caught during locking. 
+                        Perhaps this component was never locked?",
+                ),
+            })
         }
     }
 
@@ -72,12 +98,30 @@ impl ArchetypeStorage {
         let row = self
             .component_tys
             .get(cty)
-            .ok_or(RuntimeError::BadComponentType { ctyid: cty })?
+            .ok_or(InternalError {
+                line: line!(),
+                file: file!(),
+                dumps: vec![
+                    DebugDumpTargets::ArchetypeManager,
+                    DebugDumpTargets::ComponentTypeManager,
+                ],
+                ty: InternalErrorType::BadComponentType { ctyid: cty },
+                explain: None,
+            })?
             .row;
         if let Some(data) = self.datas.get(row) {
             Ok(data.get(coli).unwrap())
         } else {
-            Err(RuntimeError::BadComponentType { ctyid: cty })
+            Err(InternalError {
+                line: line!(),
+                file: file!(),
+                dumps: vec![
+                    DebugDumpTargets::ArchetypeManager,
+                    DebugDumpTargets::ComponentTypeManager,
+                ],
+                ty: InternalErrorType::BadComponentType { ctyid: cty },
+                explain: None,
+            })
         }
     }
 
@@ -87,7 +131,16 @@ impl ArchetypeStorage {
             if let Some(data) = self.datas.get(row) {
                 Ok(Some(data.ptr()))
             } else {
-                Err(RuntimeError::BadComponentType { ctyid: cty })
+                Err(InternalError {
+                    line: line!(),
+                    file: file!(),
+                    dumps: vec![
+                        DebugDumpTargets::ArchetypeManager,
+                        DebugDumpTargets::ComponentTypeManager,
+                    ],
+                    ty: InternalErrorType::BadComponentType { ctyid: cty },
+                    explain: Some("Could not get this component's storage iter."),
+                })
             }
         } else {
             Ok(None)
@@ -104,7 +157,16 @@ impl ArchetypeStorage {
 
     pub fn insert(&mut self, entity: Entity) -> Result<ArchetypeStorageInsert<'_>> {
         if self.get_entity_column(entity).is_ok() {
-            return Err(RuntimeError::BadEntity { e: entity });
+            return Err(InternalError {
+                line: line!(),
+                file: file!(),
+                dumps: vec![
+                    DebugDumpTargets::EntityManager,
+                    DebugDumpTargets::ArchetypeManager,
+                ],
+                ty: InternalErrorType::BadEntity { e: entity },
+                explain: Some("This entity has been previously inserted"),
+            });
         }
         self.entities.push(entity);
         Ok(ArchetypeStorageInsert::create(self))
@@ -145,7 +207,16 @@ impl ArchetypeStorage {
         if let Some(coli) = self.entities.iter().position(|&e| e == entity) {
             Ok(coli)
         } else {
-            Err(RuntimeError::BadEntity { e: entity })
+            Err(InternalError {
+                line: line!(),
+                file: file!(),
+                dumps: vec![
+                    DebugDumpTargets::EntityManager,
+                    DebugDumpTargets::ArchetypeManager,
+                ],
+                ty: InternalErrorType::BadEntity { e: entity },
+                explain: Some("This entity has not been inserted here"),
+            })
         }
     }
 }
@@ -175,16 +246,34 @@ impl<'astore> ArchetypeStorageInsert<'astore> {
             self.storage.datas.get_mut(row).unwrap().resize(1, c);
             Ok(())
         } else {
-            Err(RuntimeError::BadComponentType {
-                ctyid: component_ty,
+            Err(InternalError {
+                line: line!(),
+                file: file!(),
+                dumps: vec![
+                    DebugDumpTargets::ArchetypeManager,
+                    DebugDumpTargets::ComponentTypeManager,
+                ],
+                ty: InternalErrorType::BadComponentType {
+                    ctyid: component_ty,
+                },
+                explain: Some("This storage cannot hold this component"),
             })
         }
     }
 
     pub fn done(&self) -> Result<()> {
         if self.storage.inserted_check.len() != 0 {
-            Err(RuntimeError::ArchetypeStorageInsertIncomplete {
-                missing: self.storage.inserted_check.clone(),
+            Err(InternalError {
+                line: line!(),
+                file: file!(),
+                dumps: vec![
+                    DebugDumpTargets::ArchetypeManager,
+                    DebugDumpTargets::ComponentTypeManager,
+                ],
+                ty: InternalErrorType::ArchetypeStorageInsertIncomplete {
+                    missing: self.storage.inserted_check.clone(),
+                },
+                explain: None,
             })
         } else {
             Ok(())

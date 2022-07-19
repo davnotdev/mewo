@@ -1,6 +1,5 @@
 use std::sync::atomic::{AtomicU8, Ordering};
 
-#[derive(Debug)]
 pub struct IndividualLock {
     lock: RWLock,
 }
@@ -89,6 +88,20 @@ impl RWLock {
             LockState::Shared => self.lock.fetch_sub(1, Ordering::AcqRel),
             LockState::Exclusive => self.lock.fetch_add(1, Ordering::AcqRel),
         };
+    }
+}
+
+impl std::fmt::Debug for IndividualLock {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let val = self.lock.lock.load(Ordering::SeqCst);
+        write!(f, "[{}]", match val {
+            OPEN_STATE => "Unlocked".to_string(),
+            EXCLUSIVE_STATE => "Write Locked".to_string(),
+            rcount => {
+                format!("Shared by {}", rcount)
+            }
+        })
+        
     }
 }
 

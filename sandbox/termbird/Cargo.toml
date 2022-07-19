@@ -6,6 +6,7 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+mewo_log = { version = "*", path = "../../core/mewo_log/" }
 mewo_common = { version = "*", path = "../../std/mewo_common" }
 mewo_term = { version = "*", path = "../../extras/mewo_term" }
 rust_burrito = { version = "*", path = "../../core/rust_burrito" }

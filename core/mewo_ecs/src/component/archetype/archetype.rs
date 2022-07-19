@@ -13,7 +13,7 @@ impl ArchetypeManager {
         amgr.storages.insert(
             amgr.cgmgr.get_null_group_id(),
             ArchetypeStorage::create(&ComponentTypeManager::create(), &ComponentGroup::create())
-                .unwrap(),
+                .iex_unwrap(),
         );
         amgr
     }
@@ -22,7 +22,16 @@ impl ArchetypeManager {
         self.yeet_locked()?;
 
         if let Some(_) = self.entity_set.get(entity.id()) {
-            Err(RuntimeError::BadEntity { e: entity })
+            Err(InternalError {
+                line: line!(),
+                file: file!(),
+                dumps: vec![
+                    DebugDumpTargets::EntityManager,
+                    DebugDumpTargets::ArchetypeManager,
+                ],
+                ty: InternalErrorType::BadEntity { e: entity },
+                explain: Some("This entity has already been inserted."),
+            })
         } else {
             self.entity_set
                 .insert(entity.id(), self.cgmgr.get_null_group_id());
@@ -32,6 +41,7 @@ impl ArchetypeManager {
                 .unwrap();
             let insert = storage.insert(entity)?;
             insert.done()?;
+            debug_dump_changed(self);
             Ok(())
         }
     }
@@ -43,9 +53,19 @@ impl ArchetypeManager {
             let storage = self.storages.get_mut(locator).unwrap();
             assert_eq!(storage.remove(entity), Ok(()));
             self.entity_set.remove(entity.id());
+            debug_dump_changed(self);
             Ok(())
         } else {
-            Err(RuntimeError::BadEntity { e: entity })
+            Err(InternalError {
+                line: line!(),
+                file: file!(),
+                dumps: vec![
+                    DebugDumpTargets::EntityManager,
+                    DebugDumpTargets::ArchetypeManager,
+                ],
+                ty: InternalErrorType::BadEntity { e: entity },
+                explain: Some("This entity cannot be removed."),
+            })
         }
     }
 
@@ -68,7 +88,16 @@ impl ArchetypeManager {
         let &entity_gid = if let Some(l) = self.entity_set.get(e.id()) {
             l
         } else {
-            return Err(RuntimeError::BadEntity { e });
+            Err(InternalError {
+                line: line!(),
+                file: file!(),
+                dumps: vec![
+                    DebugDumpTargets::EntityManager,
+                    DebugDumpTargets::ArchetypeManager,
+                ],
+                ty: InternalErrorType::BadEntity { e },
+                explain: Some("This entity cannot be transformed because it doesn't exist."),
+            })?
         };
         let old_group = self.cgmgr.get(entity_gid)?;
         let mut group_modify = old_group.clone().modify();
@@ -104,6 +133,7 @@ impl ArchetypeManager {
         insert.done()?;
         self.storages.get_mut(entity_gid).unwrap().remove(e)?;
         *self.entity_set.get_mut(e.id()).unwrap() = gid;
+        debug_dump_changed(self);
         Ok(())
     }
 }

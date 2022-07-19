@@ -1,5 +1,5 @@
 use super::{component::ComponentTypeManager, ComponentHash, ComponentTypeId, Entity};
-use crate::{data::TVal, error::*};
+use crate::{data::TVal, unbug::prelude::*};
 
 pub struct EntityTransformer {
     transforms: Vec<EntityTransformBuilder>,

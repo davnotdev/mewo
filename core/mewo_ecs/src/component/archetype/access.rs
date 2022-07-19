@@ -1,6 +1,7 @@
 use super::{storage::ArchetypeStorage, *};
 use crate::data::LockState;
 
+#[derive(Debug)]
 pub struct ArchetypeAccessKeyManager {
     keys: Vec<(ArchetypeAccessKeyEntry, ComponentGroupQuery)>,
 }
@@ -89,6 +90,7 @@ impl ArchetypeAccessKeyManager {
     }
 }
 
+#[derive(Debug)]
 pub struct ArchetypeAccessKeyEntry {
     accesses: Vec<(ComponentGroupId, SparseSet<ComponentTypeId, LockState>)>,
 }
@@ -124,7 +126,7 @@ impl<'amgr> Drop for ArchetypeAccess<'amgr> {
     fn drop(&mut self) {
         let (_gid, lock_map) = self.archetype_access_key.accesses.get(self.idx).unwrap();
         for &(cty, lock_state) in lock_map.get_dense() {
-            self.storage.unlock_component(cty, lock_state).unwrap();
+            self.storage.unlock_component(cty, lock_state).iex_unwrap();
             self.lock_count.fetch_sub(1, Ordering::Relaxed);
         }
     }
@@ -136,6 +138,7 @@ impl ArchetypeManager {
         q: ComponentGroupQuery,
     ) -> Result<ArchetypeAccessKey> {
         self.yeet_locked()?;
+        debug_dump_changed(self);
         Ok(self.akmgr.register(q))
     }
 
@@ -148,7 +151,7 @@ impl ArchetypeManager {
             if let Some((gid, lock_map)) = access.accesses.get(idx) {
                 let gid = *gid;
                 if let Some(storage) = self.storages.get(gid) {
-                    let group = self.cgmgr.get(gid).unwrap();
+                    let group = self.cgmgr.get(gid).iex_unwrap();
                     for &cty in group.get() {
                         if let Some(&lock_state) = lock_map.get(cty) {
                             storage.lock_component(cty, lock_state)?;
@@ -161,18 +164,50 @@ impl ArchetypeManager {
                         lock_count: &self.lock_count,
                         archetype_access_key: access,
                     };
+                    //  debug_dump_changed(self);
                     Ok(Some(access))
                 } else {
-                    Err(RuntimeError::BadComponentGroup { gid })
+                    Err(InternalError {
+                        line: line!(),
+                        file: file!(),
+                        dumps: vec![
+                            DebugDumpTargets::ArchetypeManager,
+                            DebugDumpTargets::ComponentTypeManager,
+                        ],
+                        ty: InternalErrorType::BadComponentGroup { gid },
+                        explain: Some(
+                            "This component group stored by `ArchetypeAccessKeyManager` is invalid",
+                        ),
+                    })
                 }
             } else {
-                Err(RuntimeError::BadArchetypeManagerAccessIndex {
-                    idx,
-                    max: access.get_count(),
+                Err(InternalError {
+                    line: line!(),
+                    file: file!(),
+                    dumps: vec![
+                        DebugDumpTargets::ArchetypeManager,
+                        DebugDumpTargets::ComponentTypeManager,
+                    ],
+                    ty: InternalErrorType::BadArchetypeManagerAccessIndex {
+                        idx,
+                        max: access.get_count(),
+                    },
+                    explain: Some(
+                        "This component group stored by `ArchetypeAccessKeyManager` is invalid",
+                    ),
                 })
             }
         } else {
-            Err(RuntimeError::BadArchetypeAccessKey { akid })
+            Err(InternalError {
+                line: line!(),
+                file: file!(),
+                dumps: vec![
+                    DebugDumpTargets::ArchetypeManager,
+                    DebugDumpTargets::ComponentTypeManager,
+                ],
+                ty: InternalErrorType::BadArchetypeAccessKey { akid },
+                explain: None,
+            })
         }
     }
 

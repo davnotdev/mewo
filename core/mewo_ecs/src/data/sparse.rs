@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 
 //  Note that K is only here for code readability.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct SparseSet<K, V> {
     //  (K, data)
     dense: Vec<(usize, V)>,
@@ -80,6 +80,23 @@ impl<K, V> SparseSet<K, V> {
 
     pub fn get_dense(&self) -> &Vec<(usize, V)> {
         &self.dense
+    }
+}
+
+impl<K, V> std::fmt::Debug for SparseSet<K, V> 
+    where V: std::fmt::Debug
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "SparseSet<{}, {}> {{\n",
+            std::any::type_name::<K>(),
+            std::any::type_name::<V>()
+        )?;
+        for (k, v) in self.get_dense() {
+            write!(f, "\t{} -> {:?}\n", k, v)?;
+        }
+        write!(f, "}}")
     }
 }
 

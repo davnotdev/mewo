@@ -1,6 +1,6 @@
 use crate::{
     data::{DVec, TVal, ValueDrop},
-    error::*,
+    unbug::prelude::*,
     HashType,
 };
 use std::collections::HashMap;
@@ -20,6 +20,7 @@ pub type EventHash = HashType;
 
 //  Events are assumed to be never cloned.
 //  I mean, why would you anyway?
+#[derive(Debug)]
 pub struct EventTypeEntry {
     pub size: usize,
     pub name: String,
@@ -27,6 +28,7 @@ pub struct EventTypeEntry {
     pub drop: ValueDrop,
 }
 
+#[derive(Debug)]
 pub struct EventManager {
     hash_map: HashMap<EventHash, (EventTypeEntry, EventStorage)>,
 }
@@ -40,10 +42,17 @@ impl EventManager {
 
     pub fn register(&mut self, entry: EventTypeEntry) -> Result<()> {
         if self.hash_map.contains_key(&entry.hash) {
-            Err(RuntimeError::DuplicateEventTypeHash { hash: entry.hash })?
+            Err(InternalError {
+                line: line!(),
+                file: file!(),
+                dumps: vec![],
+                ty: InternalErrorType::DuplicateEventTypeHash { hash: entry.hash },
+                explain: None,
+            })?
         }
         let storage = EventStorage::create(entry.size, entry.drop);
         self.hash_map.insert(entry.hash, (entry, storage));
+        debug_dump_changed(self);
         Ok(())
     }
 
@@ -51,14 +60,32 @@ impl EventManager {
         Ok(&self
             .hash_map
             .get(&hash)
-            .ok_or(RuntimeError::BadEventTypeHash { hash })?
+            .ok_or(InternalError {
+                line: line!(),
+                file: file!(),
+                explain: Some(
+                    "
+                    This error should pretty much never occur since 
+                    `EventManager::get` is pretty much never used.",
+                ),
+                dumps: vec![DebugDumpTargets::Events],
+                ty: InternalErrorType::BadEventTypeHash { hash },
+            })?
             .0)
     }
 
     pub fn get_event(&self, hash: EventHash, idx: usize) -> Result<*const u8> {
         self.hash_map
             .get(&hash)
-            .ok_or(RuntimeError::BadEventTypeHash { hash })?
+            .ok_or(InternalError {
+                line: line!(),
+                file: file!(),
+                dumps: vec![DebugDumpTargets::Events],
+                ty: InternalErrorType::BadEventTypeHash { hash },
+                explain: Some(
+                    "This error should have been caught by `EventManager::get_event_count`.",
+                ),
+            })?
             .1
             .get(idx)
     }
@@ -67,7 +94,15 @@ impl EventManager {
         Ok(self
             .hash_map
             .get(&hash)
-            .ok_or(RuntimeError::BadEventTypeHash { hash })?
+            .ok_or(InternalError {
+                line: line!(),
+                file: file!(),
+                dumps: vec![DebugDumpTargets::Events],
+                ty: InternalErrorType::BadEventTypeHash { hash },
+                explain: Some(
+                    "`EventManager::get_event_count` failed. This event is not registered.",
+                ),
+            })?
             .1
             .len())
     }
@@ -77,17 +112,24 @@ impl EventManager {
             storage.flush();
         }
         for (hash, insert) in inserts.get() {
-            let (_entry, storage) = self
-                .hash_map
-                .get_mut(hash)
-                .ok_or(RuntimeError::BadEventTypeHash { hash: *hash })?;
+            let (_entry, storage) = self.hash_map.get_mut(hash).ok_or(InternalError {
+                line: line!(),
+                file: file!(),
+                dumps: vec![DebugDumpTargets::Events],
+                ty: InternalErrorType::BadEventTypeHash { hash: *hash },
+                explain: Some(
+                    "This error should have been caught by `EventManager::get_event_count`.",
+                ),
+            })?;
             storage.push(insert.get());
         }
         inserts.flush();
+        debug_dump_changed(self);
         Ok(())
     }
 }
 
+#[derive(Debug)]
 struct EventStorage {
     datas: DVec,
 }
@@ -108,9 +150,13 @@ impl EventStorage {
     }
 
     pub fn get(&self, idx: usize) -> Result<*const u8> {
-        self.datas
-            .get(idx)
-            .ok_or(RuntimeError::BadEventStorageGetIndex { idx })
+        self.datas.get(idx).ok_or(InternalError {
+            line: line!(),
+            file: file!(),
+            dumps: vec![DebugDumpTargets::Events],
+            ty: InternalErrorType::BadEventStorageGetIndex { idx },
+            explain: Some("Either `EventManager::get_event_count` or the executor failed."),
+        })
     }
 
     pub fn flush(&mut self) {
@@ -137,5 +183,11 @@ impl EventInsert {
 
     fn flush(&mut self) {
         self.events.clear();
+    }
+}
+
+impl TargetedDump for EventManager {
+    fn target() -> DebugDumpTargets {
+        DebugDumpTargets::Events
     }
 }

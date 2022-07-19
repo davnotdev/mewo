@@ -1,9 +1,9 @@
 mod component;
 mod data;
-mod error;
 mod event;
 mod resource;
 mod runtime;
+mod unbug;
 
 pub type Id = usize;
 pub type HashType = u64;
@@ -18,4 +18,9 @@ pub use event::{EventHash, EventInsert, EventOption, EventTypeEntry};
 pub use resource::{ResourceHash, ResourceManager, ResourceQueryAccessType, ResourceTypeEntry};
 pub use runtime::{
     Executor, Galaxy, RawPlugin, RawPluginBundle, StraightExecutor, System, SystemBuilder,
+    SystemFunction,
+};
+pub use unbug::{
+    debug_request_dump, DebugDumpTargets, DebugMessage, DebugMessageLevel,
+    InternalError, InternalErrorType,
 };

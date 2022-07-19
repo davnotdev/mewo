@@ -9,6 +9,9 @@ use crate::{
     },
     event::EventManager,
     resource::ResourceManager,
+    unbug::{
+        debug_insert_dump_hook, debug_insert_log_hook, prelude::*, DebugDumpHook, DebugLogHook,
+    },
 };
 
 pub struct Galaxy {
@@ -26,7 +29,17 @@ impl Galaxy {
         plugins
             .into_iter()
             .map(|plugin| self.plugins.plugin(plugin))
-            .for_each(|res| res.unwrap());
+            .for_each(|res| res.iex_unwrap());
+        self
+    }
+
+    pub fn debug_log_hook(self, hook: DebugLogHook) -> Self {
+        debug_insert_log_hook(hook);
+        self
+    }
+
+    pub fn debug_dump_hook(self, hook: DebugDumpHook) -> Self {
+        debug_insert_dump_hook(hook);
         self
     }
 
@@ -73,24 +86,24 @@ impl GalaxyRuntime {
                     .into_iter()
                     .map(|cty_entry| runtime.ctymgr.register(cty_entry))
                     .for_each(|res| {
-                        res.unwrap();
+                        res.iex_unwrap();
                     });
                 //  Events
                 events
                     .into_iter()
                     .map(|ev_entry| evmgr.register(ev_entry))
-                    .for_each(|res| res.unwrap());
+                    .for_each(|res| res.iex_unwrap());
                 //  Resources
                 resources
                     .into_iter()
                     .map(|rc_entry| rcmgr.register(rc_entry))
-                    .for_each(|res| res.unwrap());
+                    .for_each(|res| res.iex_unwrap());
             },
         );
 
         let systems = plugin_systems
             .into_iter()
-            .map(|sys| sys.build(&runtime.ctymgr, &mut runtime.amgr).unwrap())
+            .map(|sys| sys.build(&runtime.ctymgr, &mut runtime.amgr).iex_unwrap())
             .collect::<Vec<super::System>>();
         let exec = E::create(evmgr, rcmgr, systems, &mut runtime);
         (runtime, exec)

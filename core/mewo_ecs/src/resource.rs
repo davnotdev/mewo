@@ -1,6 +1,6 @@
 use super::{
     data::{CentralLock, TVal},
-    error::*,
+    unbug::prelude::*,
     HashType,
 };
 use std::collections::HashMap;
@@ -14,16 +14,19 @@ pub enum ResourceQueryAccessType {
 }
 
 //  Similar to Events, resources have no need to be cloned.
+#[derive(Debug)]
 pub struct ResourceTypeEntry {
     pub name: String,
     pub hash: ResourceHash,
 }
 
+#[derive(Debug)]
 struct Resource {
     entry: ResourceTypeEntry,
     val: Option<TVal>,
 }
 
+#[derive(Debug)]
 pub struct ResourceManager {
     lock: CentralLock,
     hash_map: HashMap<ResourceHash, Resource>,
@@ -39,10 +42,17 @@ impl ResourceManager {
 
     pub fn register(&mut self, entry: ResourceTypeEntry) -> Result<()> {
         if self.hash_map.contains_key(&entry.hash) {
-            Err(RuntimeError::DuplicateResourceTypeHash { hash: entry.hash })?
+            Err(InternalError {
+                line: line!(),
+                file: file!(),
+                dumps: vec![DebugDumpTargets::Resources],
+                explain: Some("Hashes should be handled by the burrito."),
+                ty: InternalErrorType::DuplicateResourceTypeHash { hash: entry.hash },
+            })?
         }
         self.hash_map
             .insert(entry.hash, Resource { entry, val: None });
+        debug_dump_changed(self);
         Ok(())
     }
 
@@ -50,7 +60,17 @@ impl ResourceManager {
         Ok(&self
             .hash_map
             .get(&hash)
-            .ok_or(RuntimeError::BadResourceTypeHash { hash })?
+            .ok_or(InternalError {
+                line: line!(),
+                file: file!(),
+                dumps: vec![DebugDumpTargets::Resources],
+                ty: InternalErrorType::BadResourceTypeHash { hash },
+                explain: Some(
+                    "
+                    This error should pretty much never occur since 
+                    `ResourceManager::get_type` is pretty much never used.",
+                ),
+            })?
             .entry)
     }
 
@@ -58,7 +78,13 @@ impl ResourceManager {
         Ok(&self
             .hash_map
             .get(&hash)
-            .ok_or(RuntimeError::BadResourceTypeHash { hash })?
+            .ok_or(InternalError {
+                line: line!(),
+                file: file!(),
+                dumps: vec![DebugDumpTargets::Resources],
+                ty: InternalErrorType::BadResourceTypeHash { hash },
+                explain: Some("Failed on shared resource lock."),
+            })?
             .val)
     }
 
@@ -73,7 +99,13 @@ impl ResourceManager {
         Ok(&mut self
             .unsafe_get_mut_map()
             .get_mut(&hash)
-            .ok_or(RuntimeError::BadResourceTypeHash { hash })?
+            .ok_or(InternalError {
+                line: line!(),
+                file: file!(),
+                dumps: vec![DebugDumpTargets::Resources],
+                ty: InternalErrorType::BadResourceTypeHash { hash },
+                explain: Some("Failed on mutable resource lock."),
+            })?
             .val)
     }
 
@@ -89,5 +121,11 @@ impl ResourceManager {
             ResourceQueryAccessType::Read => self.lock.unlock_read(),
             ResourceQueryAccessType::Write => self.lock.unlock_write(),
         };
+    }
+}
+
+impl TargetedDump for ResourceManager {
+    fn target() -> DebugDumpTargets {
+        DebugDumpTargets::Resources
     }
 }

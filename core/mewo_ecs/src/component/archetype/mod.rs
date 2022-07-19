@@ -12,12 +12,13 @@ use super::{
     transform::{EntityModify, EntityTransform},
     ComponentGroupId, ComponentTypeId, Entity,
 };
-use crate::{data::SparseSet, error::*, Id};
+use crate::{data::SparseSet, unbug::prelude::*, Id};
 use std::sync::atomic::{AtomicU32, Ordering};
 
 pub use access::ArchetypeAccess;
 pub type ArchetypeAccessKey = Id;
 
+#[derive(Debug)]
 pub struct ArchetypeManager {
     lock_count: AtomicU32,
     storages: SparseSet<ComponentGroupId, storage::ArchetypeStorage>,
@@ -32,7 +33,13 @@ impl ArchetypeManager {
         if self.lock_count.load(Ordering::Acquire) == 0 {
             Ok(())
         } else {
-            Err(RuntimeError::ArchetypeStorageLocked)
+            Err(InternalError {
+                line: line!(),
+                file: file!(),
+                dumps: vec![DebugDumpTargets::ArchetypeManager],
+                ty: InternalErrorType::ArchetypeStorageLocked,
+                explain: None,
+            })
         }
     }
 
@@ -44,5 +51,11 @@ impl ArchetypeManager {
             }
         }
         panic!()
+    }
+}
+
+impl TargetedDump for ArchetypeManager {
+    fn target() -> DebugDumpTargets {
+        DebugDumpTargets::ArchetypeManager
     }
 }

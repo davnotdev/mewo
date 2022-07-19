@@ -2,6 +2,7 @@ use super::exec::{
     EntityTransformer, EventHash, EventInsert, EventManager, EventOption, Executor, GalaxyRuntime,
     ResourceManager, System,
 };
+use crate::unbug::prelude::*;
 use std::collections::HashMap;
 
 pub struct StraightExecutor {
@@ -44,7 +45,7 @@ impl Executor for StraightExecutor {
             galaxy.apply_transform(transform);
         }
 
-        evmgr.flush(&mut ev_insert).unwrap();
+        evmgr.flush(&mut ev_insert).iex_unwrap();
 
         StraightExecutor {
             evmgr,
@@ -59,8 +60,8 @@ impl Executor for StraightExecutor {
         for (&hash, systems) in self.systems.iter() {
             match hash {
                 EventOption::Event(hash) => {
-                    for idx in 0..self.evmgr.get_event_count(hash).unwrap() {
-                        let ev = self.evmgr.get_event(hash, idx).unwrap();
+                    for idx in 0..self.evmgr.get_event_count(hash).iex_unwrap() {
+                        let ev = self.evmgr.get_event(hash, idx).iex_unwrap();
                         for system in systems.iter() {
                             system.run(
                                 galaxy,
@@ -86,7 +87,7 @@ impl Executor for StraightExecutor {
                 EventOption::Startup => unreachable!(),
             }
         }
-        self.evmgr.flush(&mut self.ev_insert).unwrap();
+        self.evmgr.flush(&mut self.ev_insert).iex_unwrap();
         while let Some(transform) = self.entity_transformer.get() {
             galaxy.apply_transform(transform);
         }

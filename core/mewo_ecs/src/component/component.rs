@@ -1,10 +1,11 @@
 use super::{ComponentHash, ComponentTypeId};
 use crate::{
     data::{ValueClone, ValueDrop},
-    error::*,
+    unbug::prelude::*,
 };
 use std::collections::HashMap;
 
+#[derive(Debug)]
 pub struct ComponentTypeEntry {
     pub size: usize,
     pub name: String,
@@ -13,6 +14,7 @@ pub struct ComponentTypeEntry {
     pub clone: ValueClone,
 }
 
+#[derive(Debug)]
 pub struct ComponentTypeManager {
     component_tys: Vec<ComponentTypeEntry>,
     hash_map: HashMap<ComponentHash, ComponentTypeId>,
@@ -29,11 +31,18 @@ impl ComponentTypeManager {
     pub fn register(&mut self, entry: ComponentTypeEntry) -> Result<ComponentTypeId> {
         let hash = entry.hash;
         if self.hash_map.contains_key(&hash) {
-            Err(RuntimeError::DuplicateComponentTypeHash { hash })?
+            Err(InternalError {
+                line: line!(),
+                file: file!(),
+                dumps: vec![DebugDumpTargets::ComponentTypeManager],
+                ty: InternalErrorType::DuplicateComponentTypeHash { hash },
+                explain: Some("Hashes should be handled by the burrito."),
+            })?
         }
         self.component_tys.push(entry);
         let id = self.component_tys.len() - 1;
         self.hash_map.insert(hash, id);
+        debug_dump_changed(self);
         Ok(id)
     }
 
@@ -41,7 +50,13 @@ impl ComponentTypeManager {
         if let Some(e) = self.component_tys.get(id) {
             Ok(e)
         } else {
-            Err(RuntimeError::BadComponentType { ctyid: id })
+            Err(InternalError {
+                line: line!(),
+                file: file!(),
+                dumps: vec![DebugDumpTargets::ComponentTypeManager],
+                ty: InternalErrorType::BadComponentType { ctyid: id },
+                explain: Some("This component is not registered."),
+            })?
         }
     }
 
@@ -49,6 +64,18 @@ impl ComponentTypeManager {
         self.hash_map
             .get(&hash)
             .map(|cty| *cty)
-            .ok_or(RuntimeError::BadComponentTypeHash { hash })
+            .ok_or(InternalError {
+                line: line!(),
+                file: file!(),
+                dumps: vec![DebugDumpTargets::ComponentTypeManager],
+                ty: InternalErrorType::BadComponentTypeHash { hash },
+                explain: Some("This component is not registered."),
+            })
+    }
+}
+
+impl TargetedDump for ComponentTypeManager {
+    fn target() -> DebugDumpTargets {
+        DebugDumpTargets::ComponentTypeManager
     }
 }

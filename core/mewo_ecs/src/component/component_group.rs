@@ -1,5 +1,5 @@
 use super::{ComponentGroupId, ComponentTypeId};
-use crate::error::*;
+use crate::unbug::prelude::*;
 
 pub struct ComponentGroupModify {
     data: Vec<ComponentTypeId>,
@@ -15,7 +15,16 @@ impl ComponentGroupModify {
             self.data.swap_remove(idx);
             Ok(())
         } else {
-            Err(RuntimeError::BadComponentType { ctyid: cty })
+            Err(InternalError {
+                line: line!(),
+                file: file!(),
+                dumps: vec![
+                    DebugDumpTargets::ArchetypeManager,
+                    DebugDumpTargets::ComponentTypeManager,
+                ],
+                ty: InternalErrorType::BadComponentType { ctyid: cty },
+                explain: Some("Could not remove this component from group."),
+            })
         }
     }
 
@@ -25,7 +34,16 @@ impl ComponentGroupModify {
         for &here in self.data.iter() {
             if let Some(last) = last {
                 if here == last {
-                    return Err(RuntimeError::BadComponentType { ctyid: last });
+                    return Err(InternalError {
+                        line: line!(),
+                        file: file!(),
+                        dumps: vec![
+                            DebugDumpTargets::ArchetypeManager,
+                            DebugDumpTargets::ComponentTypeManager,
+                        ],
+                        ty: InternalErrorType::BadComponentType { ctyid: last },
+                        explain: Some("Duplicate component types inserted into group."),
+                    });
                 }
             }
             last = Some(here);
@@ -112,6 +130,7 @@ impl ComponentGroup {
     }
 }
 
+#[derive(Debug)]
 pub struct ComponentGroupManager {
     empty: usize, //  just 0
     component_groups: Vec<ComponentGroup>,
@@ -123,7 +142,7 @@ impl ComponentGroupManager {
             empty: 0,
             component_groups: Vec::new(),
         };
-        let empty = cgmgr.register(ComponentGroup::create()).unwrap();
+        let empty = cgmgr.register(ComponentGroup::create()).iex_unwrap();
         cgmgr.empty = empty; //  just in case :)
         cgmgr
     }
@@ -131,7 +150,16 @@ impl ComponentGroupManager {
     pub fn register(&mut self, group: ComponentGroup) -> Result<ComponentGroupId> {
         for (id, groupi) in self.component_groups.iter().enumerate() {
             if groupi.compare(&group) {
-                return Err(RuntimeError::BadComponentGroup { gid: id });
+                return Err(InternalError {
+                    line: line!(),
+                    file: file!(),
+                    dumps: vec![
+                        DebugDumpTargets::ArchetypeManager,
+                        DebugDumpTargets::ComponentTypeManager,
+                    ],
+                    ty: InternalErrorType::BadComponentGroup { gid: id },
+                    explain: Some("This component group already exists."),
+                });
             }
         }
 
@@ -143,7 +171,16 @@ impl ComponentGroupManager {
         if let Some(e) = self.component_groups.get(id) {
             Ok(e)
         } else {
-            Err(RuntimeError::BadComponentGroup { gid: id })
+            Err(InternalError {
+                line: line!(),
+                file: file!(),
+                dumps: vec![
+                    DebugDumpTargets::ArchetypeManager,
+                    DebugDumpTargets::ComponentTypeManager,
+                ],
+                ty: InternalErrorType::BadComponentGroup { gid: id },
+                explain: Some("This component group is not registered."),
+            })
         }
     }
 

@@ -1,6 +1,5 @@
 use super::drop::ValueDrop;
 
-#[derive(Debug)]
 pub struct DVec {
     data: Vec<u8>,
     len: usize, //  used only for zero sized values
@@ -98,6 +97,26 @@ impl Drop for DVec {
             let val = self.get(idx).unwrap();
             self.drop.call(val);
         }
+    }
+}
+
+impl std::fmt::Debug for DVec {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "DVec {{")?;
+        write!(f, "\n\tlength: {} size: {}", self.len, self.data_size)?;
+        let mut true_idx = 0;
+        if self.data_size == 0 {
+            write!(f, "(Zero Sized)")?;
+        } else {
+            for (idx, byte) in self.data.iter().enumerate() {
+                if idx % self.data_size == 0 {
+                    write!(f, "\n\t{}", true_idx)?;
+                    true_idx += 1;
+                }
+                write!(f, " {:02x}", byte)?;
+            }
+        }
+        write!(f, "}}\n")
     }
 }
 

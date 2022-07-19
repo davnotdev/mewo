@@ -5,12 +5,12 @@ use crate::{
         ComponentQueryAccessType, ComponentQueryFilterType, ComponentTypeId, ComponentTypeManager,
         EntityTransformer,
     },
-    error::*,
     event::{EventHash, EventInsert, EventOption},
     resource::ResourceManager,
+    unbug::prelude::*,
 };
 
-type SystemFunction = Box<
+pub struct SystemFunction(pub Box<
     dyn Fn(
         &GalaxyRuntime,
         Option<*const u8>,
@@ -21,8 +21,15 @@ type SystemFunction = Box<
         usize,
         usize,
     ),
->;
+>);
 
+impl std::fmt::Debug for SystemFunction {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "")
+    }
+}
+
+#[derive(Debug)]
 pub struct SystemBuilder {
     name: String,
     plugin_name: Option<String>,
@@ -80,8 +87,19 @@ impl SystemBuilder {
             let cty = cty?;
             query.add_filter(cty, qt)
         }
-        let plugin_name = self.plugin_name.ok_or(RuntimeError::SystemNoPluginName {
-            system: self.name.clone(),
+        let plugin_name = self.plugin_name.ok_or(InternalError {
+            line: line!(),
+            file: file!(),
+            dumps: vec![DebugDumpTargets::Plugins],
+            ty: InternalErrorType::SystemNoPluginName {
+                system: self.name.clone(),
+            },
+            explain: Some(
+                "
+                A system by itself cannot know its plugin's name therefore, 
+                it is the job of the burrito to set the system's plugin name 
+                via `SystemBuilder::set_plugin_name`.",
+            ),
         })?;
         Ok(System {
             name: self.name,
@@ -117,8 +135,8 @@ impl System {
         let count = amgr.get_access_count(akid);
         for idx in 0..count {
             loop {
-                if let Some(access) = amgr.try_access(akid, idx).unwrap() {
-                    (self.function)(
+                if let Some(access) = amgr.try_access(akid, idx).iex_unwrap() {
+                    (self.function.0)(
                         galaxy,
                         ev,
                         rcmgr,
@@ -134,7 +152,7 @@ impl System {
             }
         }
         if count == 0 {
-            (self.function)(galaxy, ev, rcmgr, ev_insert, transformer, None, 0, 1);
+            (self.function.0)(galaxy, ev, rcmgr, ev_insert, transformer, None, 0, 1);
         }
     }
 }

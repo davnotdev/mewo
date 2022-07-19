@@ -115,4 +115,10 @@ impl CentralLock {
     }
 }
 
+impl std::fmt::Debug for CentralLock {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "CentralLock")
+    }
+}
+
 //  TODO Unit test!

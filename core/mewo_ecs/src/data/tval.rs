@@ -1,6 +1,5 @@
 use super::drop::ValueDrop;
 
-#[derive(Debug)]
 pub struct TVal {
     size: usize,
     val: Vec<u8>,
@@ -41,6 +40,22 @@ impl TVal {
 impl Drop for TVal {
     fn drop(&mut self) {
         self.drop.call(self.get())
+    }
+}
+
+impl std::fmt::Debug for TVal {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "TVal {{")?;
+        write!(f, "\n\tsize: {},", self.size)?;
+        if self.size == 0 {
+            write!(f, "(Zero Sized Value)")?;
+        } else {
+        for byte in self.val.iter() {
+            write!(f, " {:02x}", byte)?;
+        }
+
+        }
+        write!(f, "}}\n")
     }
 }
 

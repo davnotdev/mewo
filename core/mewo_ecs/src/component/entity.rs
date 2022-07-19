@@ -1,4 +1,4 @@
-use crate::{error::*, Id};
+use crate::{unbug::prelude::*, Id};
 
 type EntityId = Id;
 
@@ -44,6 +44,7 @@ impl EntityManager {
             }
         }
         self.entity_count += 1;
+        debug_dump_changed(self);
         Entity {
             id: self.entity_count,
         }
@@ -53,9 +54,19 @@ impl EntityManager {
         if self.entity_exists(entity) {
             *self.entities.get_mut(entity.id()).unwrap() = false;
             self.entity_count -= 1;
+            debug_dump_changed(self);
             return Ok(());
         }
-        Err(RuntimeError::BadEntity { e: entity })
+        Err(InternalError {
+            line: line!(),
+            file: file!(),
+            dumps: vec![
+                DebugDumpTargets::EntityManager,
+                DebugDumpTargets::ComponentTypeManager,
+            ],
+            ty: InternalErrorType::BadEntity { e: entity },
+            explain: Some("Could not deregister this entity."),
+        })
     }
 
     pub fn entity_exists(&self, entity: Entity) -> bool {
@@ -64,6 +75,24 @@ impl EntityManager {
         } else {
             false
         }
+    }
+}
+
+impl std::fmt::Debug for EntityManager {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "EntityManager {{")?;
+        for (idx, &e) in self.entities.iter().enumerate() {
+            if e {
+                write!(f, "{}, ", idx)?;
+            }
+        }
+        write!(f, "}}")
+    }
+}
+
+impl TargetedDump for EntityManager {
+    fn target() -> DebugDumpTargets {
+        DebugDumpTargets::EntityManager
     }
 }
 

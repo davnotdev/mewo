@@ -1,6 +1,7 @@
 [workspace]
 members = [
   "core/mewo_ecs",
+  "core/mewo_log",
   "core/rust_burrito",
   "std/mewo_common",
   "extras/mewo_term",

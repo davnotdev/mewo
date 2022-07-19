@@ -1,8 +1,10 @@
 use super::system::SystemBuilder;
 use crate::{
-    component::ComponentTypeEntry, error::*, event::EventTypeEntry, resource::ResourceTypeEntry,
+    component::ComponentTypeEntry, event::EventTypeEntry, resource::ResourceTypeEntry,
+    unbug::prelude::*,
 };
 
+#[derive(Debug)]
 pub struct RawPlugin {
     pub name: String,
     pub deps: Vec<String>,
@@ -12,6 +14,7 @@ pub struct RawPlugin {
     pub resources: Vec<ResourceTypeEntry>,
 }
 
+#[derive(Debug)]
 pub struct RawPluginBundle {
     plugins: Vec<RawPlugin>,
     included_deps: Vec<String>,
@@ -29,28 +32,47 @@ impl RawPluginBundle {
         let mut unmet = Vec::new();
         for dep in plugin.deps.iter() {
             if *dep == plugin.name {
-                return Err(RuntimeError::PluginDependsOnSelf {
-                    plugin: plugin.name,
-                });
+                Err(InternalError {
+                    line: line!(),
+                    file: file!(),
+                    dumps: vec![],
+                    explain: None,
+                    ty: InternalErrorType::PluginDependsOnSelf {
+                        plugin: plugin.name.clone(),
+                    },
+                })?
             }
             if let None = self.included_deps.iter().position(|d| d == dep) {
                 unmet.push(dep.clone());
             }
         }
         if !unmet.is_empty() {
-            return Err(RuntimeError::PluginDependenciesNoMet {
-                plugin: plugin.name,
-                unmet,
+            return Err(InternalError {
+                line: line!(),
+                file: file!(),
+                dumps: vec![DebugDumpTargets::Plugins],
+                explain: None,
+                ty: InternalErrorType::PluginDependenciesNoMet {
+                    plugin: plugin.name,
+                    unmet,
+                },
             });
         }
         let name = plugin.name.clone();
         self.plugins.push(plugin);
         self.included_deps.push(name);
+        debug_dump_changed(self);
         Ok(())
     }
 
     pub fn consume(self) -> Vec<RawPlugin> {
         self.plugins
+    }
+}
+
+impl TargetedDump for RawPluginBundle {
+    fn target() -> DebugDumpTargets {
+        DebugDumpTargets::Plugins
     }
 }
 
@@ -98,23 +120,28 @@ fn test_plugin_bundle() {
     assert_eq!(pb.plugin(clone(&a)), Ok(()));
 
     let mut pb = RawPluginBundle::create();
-    assert_eq!(
-        pb.plugin(clone(&b)),
-        Err(RuntimeError::PluginDependenciesNoMet {
-            plugin: String::from("b"),
-            unmet: vec![String::from("a")]
-        })
-    );
+    assert!(match pb.plugin(clone(&b)) {
+        Err(InternalError {
+            ty:
+                InternalErrorType::PluginDependenciesNoMet {
+                    plugin: bstr,
+                    unmet: astr,
+                },
+            ..
+        }) if (bstr == "b" && astr == vec!["a"]) => true,
+        _ => false,
+    });
 
     let mut pb = RawPluginBundle::create();
     assert_eq!(pb.plugin(clone(&a)), Ok(()));
     assert_eq!(pb.plugin(clone(&b)), Ok(()));
 
     let mut pb = RawPluginBundle::create();
-    assert_eq!(
-        pb.plugin(clone(&c)),
-        Err(RuntimeError::PluginDependsOnSelf {
-            plugin: String::from("c")
-        })
-    );
+    assert!(match pb.plugin(clone(&c)) {
+        Err(InternalError {
+            ty: InternalErrorType::PluginDependsOnSelf { plugin: cstr },
+            ..
+        }) if cstr == "c" => true,
+        _ => false,
+    });
 }

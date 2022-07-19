@@ -67,7 +67,7 @@ impl PluginBuilder {
             EA::hash(),
             CA::accesses(),
             CF::filters(),
-            Box::new(
+            mewo_ecs::SystemFunction(Box::new(
                 move |galaxy, ev, rcmgr, ev_insert, transformer, access, idx, count| {
                     (function)(
                         SystemBus::create(
@@ -80,7 +80,7 @@ impl PluginBuilder {
                         Events::create(ev),
                         Components::create(galaxy.get_component_type_manager(), &access),
                     );
-                },
+                }),
             ),
         ))
     }

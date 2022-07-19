@@ -1,5 +1,4 @@
 pub use super::{galaxy::GalaxyRuntime, system::System};
-
 pub use crate::{
     component::EntityTransformer,
     event::{EventHash, EventInsert, EventManager, EventOption},
