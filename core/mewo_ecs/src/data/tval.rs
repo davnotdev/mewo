@@ -50,10 +50,9 @@ impl std::fmt::Debug for TVal {
         if self.size == 0 {
             write!(f, "(Zero Sized Value)")?;
         } else {
-        for byte in self.val.iter() {
-            write!(f, " {:02x}", byte)?;
-        }
-
+            for byte in self.val.iter() {
+                write!(f, " {:02x}", byte)?;
+            }
         }
         write!(f, "}}\n")
     }

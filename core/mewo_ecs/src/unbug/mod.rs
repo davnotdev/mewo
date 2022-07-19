@@ -15,4 +15,3 @@ pub use log::{
 //      static mut GLOBAL_DEBUG_LOCK: AtomicBool = AtomicBool::new(false);
 //      unsafe { &GLOBAL_DEBUG_LOCK }
 //  }
-

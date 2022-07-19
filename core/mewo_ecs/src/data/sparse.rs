@@ -83,8 +83,9 @@ impl<K, V> SparseSet<K, V> {
     }
 }
 
-impl<K, V> std::fmt::Debug for SparseSet<K, V> 
-    where V: std::fmt::Debug
+impl<K, V> std::fmt::Debug for SparseSet<K, V>
+where
+    V: std::fmt::Debug,
 {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(

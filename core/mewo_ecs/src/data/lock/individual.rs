@@ -94,14 +94,17 @@ impl RWLock {
 impl std::fmt::Debug for IndividualLock {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let val = self.lock.lock.load(Ordering::SeqCst);
-        write!(f, "[{}]", match val {
-            OPEN_STATE => "Unlocked".to_string(),
-            EXCLUSIVE_STATE => "Write Locked".to_string(),
-            rcount => {
-                format!("Shared by {}", rcount)
+        write!(
+            f,
+            "[{}]",
+            match val {
+                OPEN_STATE => "Unlocked".to_string(),
+                EXCLUSIVE_STATE => "Write Locked".to_string(),
+                rcount => {
+                    format!("Shared by {}", rcount)
+                }
             }
-        })
-        
+        )
     }
 }
 

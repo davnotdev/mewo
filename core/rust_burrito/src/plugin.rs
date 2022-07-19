@@ -80,8 +80,8 @@ impl PluginBuilder {
                         Events::create(ev),
                         Components::create(galaxy.get_component_type_manager(), &access),
                     );
-                }),
-            ),
+                },
+            )),
         ))
     }
 

@@ -21,6 +21,6 @@ pub use runtime::{
     SystemFunction,
 };
 pub use unbug::{
-    debug_request_dump, DebugDumpTargets, DebugMessage, DebugMessageLevel,
-    InternalError, InternalErrorType,
+    debug_request_dump, DebugDumpTargets, DebugMessage, DebugMessageLevel, InternalError,
+    InternalErrorType,
 };

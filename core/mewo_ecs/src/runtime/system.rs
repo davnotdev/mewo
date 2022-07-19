@@ -10,18 +10,20 @@ use crate::{
     unbug::prelude::*,
 };
 
-pub struct SystemFunction(pub Box<
-    dyn Fn(
-        &GalaxyRuntime,
-        Option<*const u8>,
-        &ResourceManager,
-        &mut EventInsert,
-        &mut EntityTransformer,
-        Option<ArchetypeAccess>,
-        usize,
-        usize,
-    ),
->);
+pub struct SystemFunction(
+    pub  Box<
+        dyn Fn(
+            &GalaxyRuntime,
+            Option<*const u8>,
+            &ResourceManager,
+            &mut EventInsert,
+            &mut EntityTransformer,
+            Option<ArchetypeAccess>,
+            usize,
+            usize,
+        ),
+    >,
+);
 
 impl std::fmt::Debug for SystemFunction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
