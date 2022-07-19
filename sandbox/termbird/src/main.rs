@@ -247,7 +247,7 @@ fn game_collider_check(
 
 fn main() {
     Galaxy::create()
-        .debug_log_hook(mewo_log::log_hook_stderr)
+        .debug_log_hook(mewo_log::log_hook_stderr())
         .plugins(
             RustRuntime::create()
                 .plugin::<TimePlugin>()

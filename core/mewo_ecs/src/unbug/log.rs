@@ -61,7 +61,7 @@ pub struct DebugMessage {
     pub level: DebugMessageLevel,
 }
 
-pub type DebugLogHook = fn(&DebugMessage);
+pub type DebugLogHook = Box<dyn Fn(&DebugMessage)>;
 
 pub fn debug_insert_log_hook(hook: DebugLogHook) {
     let hooks = global_log_hooks();
@@ -81,23 +81,22 @@ fn run_log_hooks(msg: DebugMessage) {
 }
 
 //  Explain and unwrap, throwing an interal error.
-pub trait ErrorExplain {
+pub trait InternalExplain {
     type T;
     fn iex_unwrap(self) -> Self::T;
 }
 
-impl<T> ErrorExplain for Result<T> {
+impl<T> InternalExplain for Result<T> {
     type T = T;
     fn iex_unwrap(self) -> Self::T {
         if let Ok(ret) = self {
             return ret;
         } else if let Err(e) = self {
-            let mut err = format!("{:?}", e.ty);
-            if let Some(explain) = e.explain {
-                err += &format!(" ~ {}", explain);
-            } else {
-                err += " ~ No additional information.";
-            }
+            let err = format!(
+                "{:?} ~ {}",
+                e.ty,
+                e.explain.unwrap_or("No additional information.")
+            );
             let dbg_msg = DebugMessage {
                 line: e.line,
                 file: e.file.to_string(),

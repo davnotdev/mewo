@@ -17,7 +17,7 @@ pub trait TargetedDump: std::fmt::Debug {
     fn target() -> DebugDumpTargets;
 }
 
-pub type DebugDumpHook = fn(DebugDumpTargets);
+pub type DebugDumpHook = Box<dyn Fn(DebugDumpTargets)>;
 
 struct DebugDumpTruck {
     dumps: [Option<String>; DEBUG_DUMP_TARGET_COUNT],
