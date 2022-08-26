@@ -8,15 +8,15 @@ impl Plugin for TimePlugin {
     }
 
     fn plugin(pb: PluginBuilder) -> PluginBuilder {
-        pb.resource::<Time>()
-            .sys(|sb, _: Events<Startup>, _: Components<(), ()>| {
-                sb.resources.insert(Time::create());
-            })
-            .sys(|mut sb, _: Events<()>, _: Components<(), ()>| {
-                if let Some(time) = sb.resources.get::<&mut Time>().get() {
-                    time.last_instant = Instant::now();
-                }
-            })
+        pb.bootstrap(|sb: SystemBus<(), ()>| {
+            sb.resources.insert(Time::create());
+            Some(())
+        })
+        .update(|mut sb: SystemBus<(), ()>| {
+            let time = sb.resources.get::<&mut Time>().get()?;
+            time.last_instant = Instant::now();
+            Some(())
+        })
     }
 }
 

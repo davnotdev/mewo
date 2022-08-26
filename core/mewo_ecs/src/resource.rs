@@ -1,6 +1,6 @@
 use super::{
     data::{CentralLock, TVal},
-    unbug::prelude::*,
+    debug::prelude::*,
     HashType,
 };
 use std::collections::HashMap;

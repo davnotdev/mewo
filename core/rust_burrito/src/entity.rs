@@ -1,76 +1,128 @@
 use super::component::Component;
 use mewo_ecs::{
-    Entity, EntityModifyBuilder, EntityTransformBuilder, EntityTransformer, TVal, ValueDrop,
+    Entity, EntityModifyBuilder, EntityTransformBuilder, EntityTransformer,
+    SharedComponentTypeManager, TVal,
 };
 
-pub struct EntityBus<'exec> {
-    transformer: &'exec mut EntityTransformer,
+pub struct EntityBus<'galaxy> {
+    ctymgr: &'galaxy SharedComponentTypeManager,
+    transformer: &'galaxy mut EntityTransformer,
 }
 
-impl<'exec> EntityBus<'exec> {
-    pub fn create(transformer: &'exec mut EntityTransformer) -> Self {
-        EntityBus { transformer }
+impl<'galaxy> EntityBus<'galaxy> {
+    pub fn create(
+        ctymgr: &'galaxy SharedComponentTypeManager,
+        transformer: &'galaxy mut EntityTransformer,
+    ) -> Self {
+        EntityBus {
+            ctymgr,
+            transformer,
+        }
     }
 
     pub fn spawn(&mut self) -> EntityBurrito {
-        EntityBurrito::create_insert(self.transformer)
+        EntityBurrito::create_insert(self.ctymgr, self.transformer)
     }
 
     pub fn despawn(&mut self, entity: Entity) {
-        let rm = EntityBurrito::create_remove(entity, self.transformer);
+        let rm = EntityBurrito::create_remove(entity, self.ctymgr, self.transformer);
         drop(rm);
     }
 
     pub fn modify(&mut self, entity: Entity) -> EntityBurrito {
-        EntityBurrito::create_modify(entity, self.transformer)
+        EntityBurrito::create_modify(entity, self.ctymgr, self.transformer)
     }
 }
 
-pub struct EntityBurrito<'exec> {
+pub struct EntityBurrito<'galaxy> {
+    ctymgr: &'galaxy SharedComponentTypeManager,
     transform: Option<EntityTransformBuilder>,
-    transformer: &'exec mut EntityTransformer,
+    transformer: &'galaxy mut EntityTransformer,
 }
 
-impl<'exec> EntityBurrito<'exec> {
-    pub fn create_insert(transformer: &'exec mut EntityTransformer) -> Self {
+impl<'galaxy> EntityBurrito<'galaxy> {
+    fn create_insert(
+        ctymgr: &'galaxy SharedComponentTypeManager,
+        transformer: &'galaxy mut EntityTransformer,
+    ) -> Self {
         let transform = Some(EntityTransformBuilder::create(EntityModifyBuilder::Create(
             None,
         )));
         EntityBurrito {
+            ctymgr,
             transform,
             transformer,
         }
     }
 
-    pub fn create_modify(entity: Entity, transformer: &'exec mut EntityTransformer) -> Self {
+    fn create_modify(
+        entity: Entity,
+        ctymgr: &'galaxy SharedComponentTypeManager,
+        transformer: &'galaxy mut EntityTransformer,
+    ) -> Self {
         let transform = Some(EntityTransformBuilder::create(EntityModifyBuilder::Modify(
             entity,
         )));
         EntityBurrito {
+            ctymgr,
             transform,
             transformer,
         }
     }
 
-    pub fn create_remove(entity: Entity, transformer: &'exec mut EntityTransformer) -> Self {
+    fn create_remove(
+        entity: Entity,
+        ctymgr: &'galaxy SharedComponentTypeManager,
+        transformer: &'galaxy mut EntityTransformer,
+    ) -> Self {
         let transform = Some(EntityTransformBuilder::create(
             EntityModifyBuilder::Destroy(entity),
         ));
         EntityBurrito {
+            ctymgr,
             transform,
             transformer,
         }
     }
 
+    fn maybe_register<C>(&self)
+    where
+        C: Component,
+    {
+        let exists = self
+            .ctymgr
+            .read()
+            .unwrap()
+            .get_id_with_hash(C::component_trait_hash())
+            .is_ok();
+        if !exists {
+            let _ = self
+                .ctymgr
+                .write()
+                .unwrap()
+                .register(C::component_trait_entry());
+        }
+    }
+
     pub fn insert<C: Component>(mut self, c: C) -> Self {
+        self.maybe_register::<C>();
         self.transform.as_mut().unwrap().insert(
-            C::component_hash(),
+            C::component_trait_hash(),
             TVal::create(
-                C::component_size(),
+                C::component_trait_entry().size,
                 &c as *const C as *const u8,
-                ValueDrop::create(C::component_drop_callback()),
+                C::component_trait_entry().drop,
             ),
         );
+        self
+    }
+
+    pub fn remove<C: Component>(mut self) -> Self {
+        self.maybe_register::<C>();
+        self.transform
+            .as_mut()
+            .unwrap()
+            .remove(C::component_trait_hash());
         self
     }
 }

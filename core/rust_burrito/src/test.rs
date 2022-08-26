@@ -18,73 +18,58 @@ pub use crate::*;
 fn test_rust_burrito_og() {
     #[derive(Default, Debug, Clone, Copy, PartialEq)]
     struct Data(usize, usize, usize);
-    impl Component for Data {
-        fn component_is_copy() -> bool {
-            false
-        }
-    }
+    impl Component for Data {}
 
     #[derive(Debug, Clone, PartialEq)]
     struct WithC;
-    impl Component for WithC {
-        fn component_is_copy() -> bool {
-            false
-        }
-    }
+    impl Component for WithC {}
 
     #[derive(Debug, Clone, PartialEq)]
     struct WithoutC;
-    impl Component for WithoutC {
-        fn component_is_copy() -> bool {
-            false
-        }
-    }
+    impl Component for WithoutC {}
 
-    struct MyPlugin {}
+    struct MyPlugin;
 
     impl Plugin for MyPlugin {
         fn name() -> &'static str {
             "test_my_plugin"
         }
         fn plugin(pb: PluginBuilder) -> PluginBuilder {
-            pb.comp::<Data>()
-                .comp::<WithC>()
-                .comp::<WithoutC>()
-                .sys(system_a)
-                .sys(system_b)
-                .sys(system_c)
-                .sys(startup_system)
+            pb.startup(startup_system)
+                .update(system_a)
+                .update(system_b)
+                .update(system_c)
         }
     }
 
-    fn startup_system(mut sb: SystemBus, _: Events<Startup>, _: Components<(), ()>) {
+    fn startup_system(mut sb: SystemBus<(), ()>) -> Option<()> {
         sb.entities.spawn().insert(Data::default());
         sb.entities.spawn().insert(Data::default()).insert(WithC);
         sb.entities.spawn().insert(Data::default()).insert(WithoutC);
+        Some(())
     }
 
-    fn system_a(_: SystemBus, _: Events<()>, c: Components<&mut Data, ()>) {
-        for data in c.iter() {
+    fn system_a(sb: SystemBus<&mut Data, ()>) {
+        for data in sb.components.iter() {
             data.0 += 1;
         }
     }
 
-    fn system_b(_: SystemBus, _: Events<()>, c: Components<&mut Data, With<WithC>>) {
-        for data in c.iter() {
+    fn system_b(sb: SystemBus<&mut Data, With<WithC>>) {
+        for data in sb.components.iter() {
             data.1 += 1;
         }
     }
 
-    fn system_c(_: SystemBus, _: Events<()>, c: Components<&mut Data, Without<WithoutC>>) {
-        for data in c.iter() {
+    fn system_c(sb: SystemBus<&mut Data, Without<WithoutC>>) {
+        for data in sb.components.iter() {
             data.2 += 1;
         }
     }
 
-    let runtime = RustRuntime::create().plugin::<MyPlugin>();
-    let (mut runtime, mut exec) = Galaxy::create()
-        .plugins(runtime.done())
-        .runtime::<StraightExecutor>();
+    let galaxy = Galaxy::create();
+    galaxy.plugin(MyPlugin::build_plugin(&galaxy));
+    let (mut runtime, mut exec) = galaxy.runtime::<StraightExecutor>();
     runtime.tick(&mut exec);
 
     use mewo_ecs::Entity;

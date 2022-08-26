@@ -12,7 +12,7 @@ use super::{
     transform::{EntityModify, EntityTransform},
     ComponentGroupId, ComponentTypeId, Entity,
 };
-use crate::{data::SparseSet, unbug::prelude::*, Id};
+use crate::{data::SparseSet, debug::prelude::*, Id};
 use std::sync::atomic::{AtomicU32, Ordering};
 
 pub use access::ArchetypeAccess;

@@ -9,36 +9,46 @@ use crate::{
     },
     event::EventManager,
     resource::ResourceManager,
-    unbug::{
+    debug::{
         debug_insert_dump_hook, debug_insert_log_hook, prelude::*, DebugDumpHook, DebugLogHook,
     },
 };
+use std::sync::RwLock;
 
+//  The RwLocks here are to get borrow checker to SHUT UP.
 pub struct Galaxy {
-    plugins: RawPluginBundle,
+    ctymgr: SharedComponentTypeManager,
+    plugins: RwLock<RawPluginBundle>,
 }
 
 impl Galaxy {
     pub fn create() -> Self {
         Galaxy {
-            plugins: RawPluginBundle::create(),
+            ctymgr: SharedComponentTypeManager::new(ComponentTypeManager::create()),
+            plugins: RwLock::new(RawPluginBundle::create()),
         }
     }
 
-    pub fn plugins(mut self, plugins: Vec<RawPlugin>) -> Self {
-        plugins
-            .into_iter()
-            .map(|plugin| self.plugins.plugin(plugin))
-            .for_each(|res| res.iex_unwrap());
+    pub fn plugin(&self, plugin: RawPlugin) -> &Self {
+        let mut plugins = self.plugins.write().unwrap();
+        plugins.plugin(plugin);
         self
     }
 
-    pub fn debug_log_hook(self, hook: DebugLogHook) -> Self {
+    pub fn plugins(&self, plugins: Vec<RawPlugin>) -> &Self {
+        let mut self_plugins = self.plugins.write().unwrap();
+        plugins
+            .into_iter()
+            .for_each(|plugin| self_plugins.plugin(plugin));
+        self
+    }
+
+    pub fn debug_log_hook(&self, hook: DebugLogHook) -> &Self {
         debug_insert_log_hook(hook);
         self
     }
 
-    pub fn debug_dump_hook(self, hook: DebugDumpHook) -> Self {
+    pub fn debug_dump_hook(&self, hook: DebugDumpHook) -> &Self {
         debug_insert_dump_hook(hook);
         self
     }
@@ -51,61 +61,53 @@ impl Galaxy {
         let (runtime, exec) = GalaxyRuntime::prepare::<E>(self);
         runtime.run(exec)
     }
+
+    pub fn get_component_type_manager(&self) -> &SharedComponentTypeManager {
+        &self.ctymgr
+    }
 }
+
+pub type SharedEventManager = RwLock<EventManager>;
+pub type SharedResourceManager = RwLock<ResourceManager>;
+pub type SharedComponentTypeManager = RwLock<ComponentTypeManager>;
 
 pub struct GalaxyRuntime {
     emgr: EntityManager,
     amgr: ArchetypeManager,
-    ctymgr: ComponentTypeManager,
+    ctymgr: SharedComponentTypeManager,
+    evmgr: SharedEventManager,
+    rcmgr: SharedResourceManager,
 }
 
 impl GalaxyRuntime {
     pub fn prepare<E: Executor>(galaxy: Galaxy) -> (Self, E) {
         let mut runtime = GalaxyRuntime {
+            ctymgr: galaxy.ctymgr,
             emgr: EntityManager::create(),
             amgr: ArchetypeManager::create(),
-            ctymgr: ComponentTypeManager::create(),
+            evmgr: SharedEventManager::new(EventManager::create()),
+            rcmgr: SharedResourceManager::new(ResourceManager::create()),
         };
-        let mut rcmgr = ResourceManager::create();
-        let mut evmgr = EventManager::create();
-        let plugins = galaxy.plugins.consume();
+        let plugins = galaxy.plugins.into_inner().unwrap().consume();
 
         let mut plugin_systems = Vec::new();
-        plugins.into_iter().for_each(
-            |RawPlugin {
-                 mut systems,
-                 components,
-                 events,
-                 resources,
-                 ..
-             }| {
+        plugins
+            .into_iter()
+            .for_each(|RawPlugin { mut systems, .. }| {
                 //  Systems
                 plugin_systems.append(&mut systems);
-                //  Component Types
-                components
-                    .into_iter()
-                    .map(|cty_entry| runtime.ctymgr.register(cty_entry))
-                    .for_each(|res| {
-                        res.iex_unwrap();
-                    });
-                //  Events
-                events
-                    .into_iter()
-                    .map(|ev_entry| evmgr.register(ev_entry))
-                    .for_each(|res| res.iex_unwrap());
-                //  Resources
-                resources
-                    .into_iter()
-                    .map(|rc_entry| rcmgr.register(rc_entry))
-                    .for_each(|res| res.iex_unwrap());
-            },
-        );
+            });
 
-        let systems = plugin_systems
-            .into_iter()
-            .map(|sys| sys.build(&runtime.ctymgr, &mut runtime.amgr).iex_unwrap())
-            .collect::<Vec<super::System>>();
-        let exec = E::create(evmgr, rcmgr, systems, &mut runtime);
+        let systems;
+        {
+            let ctymgr = runtime.ctymgr.read().unwrap();
+            systems = plugin_systems
+                .into_iter()
+                .map(|sys| sys.build(&ctymgr, &mut runtime.amgr).iex_unwrap())
+                .collect::<Vec<super::System>>();
+        }
+        let mut exec = E::create(systems);
+        exec.early(&mut runtime);
         (runtime, exec)
     }
 
@@ -118,16 +120,9 @@ impl GalaxyRuntime {
             &mut EntityModifyBuilder::Destroy(rm) => self.emgr.deregister_entity(rm).unwrap(),
             _ => {}
         };
-        let transform = transform.build(&self.ctymgr).unwrap();
-        self.amgr.transform_entity(transform, &self.ctymgr).unwrap();
-    }
-
-    pub fn get_component_type_manager(&self) -> &ComponentTypeManager {
-        &self.ctymgr
-    }
-
-    pub fn get_archetype_manager(&self) -> &ArchetypeManager {
-        &self.amgr
+        let ctymgr = self.ctymgr.read().unwrap();
+        let transform = transform.build(&ctymgr).unwrap();
+        self.amgr.transform_entity(transform, &ctymgr).unwrap();
     }
 
     pub fn tick<E: Executor>(&mut self, exec: &mut E) {
@@ -138,5 +133,23 @@ impl GalaxyRuntime {
         loop {
             self.tick(&mut exec);
         }
+    }
+}
+
+impl GalaxyRuntime {
+    pub fn get_component_type_manager(&self) -> &SharedComponentTypeManager {
+        &self.ctymgr
+    }
+
+    pub fn get_archetype_manager(&self) -> &ArchetypeManager {
+        &self.amgr
+    }
+
+    pub fn get_event_manager(&self) -> &SharedEventManager {
+        &self.evmgr
+    }
+
+    pub fn get_resource_manager(&self) -> &SharedResourceManager {
+        &self.rcmgr
     }
 }

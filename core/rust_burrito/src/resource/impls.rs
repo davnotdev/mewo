@@ -9,11 +9,23 @@ where
     }
 
     fn hash() -> ResourceHash {
-        R::resource_hash()
+        R::resource_trait_hash()
     }
 
     fn access() -> ResourceQueryAccessType {
         ResourceQueryAccessType::Read
+    }
+
+    fn maybe_register(rcmgr: &SharedResourceManager) {
+        let exists = rcmgr
+            .read()
+            .unwrap()
+            .get_type(R::resource_trait_hash())
+            .is_ok();
+        if !exists {
+            let mut rcmgr = rcmgr.write().unwrap();
+            let _ = rcmgr.register(R::resource_trait_entry());
+        }
     }
 }
 
@@ -26,11 +38,23 @@ where
     }
 
     fn hash() -> ResourceHash {
-        R::resource_hash()
+        R::resource_trait_hash()
     }
 
     fn access() -> ResourceQueryAccessType {
         ResourceQueryAccessType::Write
+    }
+
+    fn maybe_register(rcmgr: &SharedResourceManager) {
+        let exists = rcmgr
+            .read()
+            .unwrap()
+            .get_type(R::resource_trait_hash())
+            .is_ok();
+        if !exists {
+            let mut rcmgr = rcmgr.write().unwrap();
+            let _ = rcmgr.register(R::resource_trait_entry());
+        }
     }
 }
 
@@ -95,6 +119,10 @@ where
         let a = Self::accesses();
         Some(val::<R0>(&a, rcmgr, 0)?)
     }
+
+    fn maybe_register(rcmgr: &SharedResourceManager) {
+        R0::maybe_register(rcmgr);
+    }
 }
 
 impl<R0, R1> Resources for (R0, R1)
@@ -119,6 +147,11 @@ where
     {
         let a = Self::accesses();
         Some((val::<R0>(&a, rcmgr, 0)?, val::<R1>(&a, rcmgr, 1)?))
+    }
+
+    fn maybe_register(rcmgr: &SharedResourceManager) {
+        R0::maybe_register(rcmgr);
+        R1::maybe_register(rcmgr);
     }
 }
 
@@ -153,5 +186,11 @@ where
             val::<R1>(&a, rcmgr, 1)?,
             val::<R2>(&a, rcmgr, 2)?,
         ))
+    }
+
+    fn maybe_register(rcmgr: &SharedResourceManager) {
+        R0::maybe_register(rcmgr);
+        R1::maybe_register(rcmgr);
+        R2::maybe_register(rcmgr);
     }
 }

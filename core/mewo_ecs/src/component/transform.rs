@@ -1,5 +1,5 @@
 use super::{component::ComponentTypeManager, ComponentHash, ComponentTypeId, Entity};
-use crate::{data::TVal, unbug::prelude::*};
+use crate::{data::TVal, debug::prelude::*};
 
 pub struct EntityTransformer {
     transforms: Vec<EntityTransformBuilder>,
@@ -59,7 +59,9 @@ impl EntityTransformBuilder {
     }
 
     pub fn remove(&mut self, ch: ComponentHash) {
-        self.removes.push(ch);
+        if self.removes.iter().position(|&hash| hash == ch).is_none() {
+            self.removes.push(ch);
+        }
     }
 
     pub fn get_mut_modify(&mut self) -> &mut EntityModifyBuilder {

@@ -1,7 +1,7 @@
 use super::{ComponentHash, ComponentTypeId};
 use crate::{
     data::{ValueClone, ValueDrop},
-    unbug::prelude::*,
+    debug::prelude::*,
 };
 use std::collections::HashMap;
 

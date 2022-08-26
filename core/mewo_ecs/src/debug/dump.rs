@@ -40,7 +40,7 @@ pub fn debug_insert_dump_hook(hook: DebugDumpHook) {
 
 pub fn debug_dump_changed<D: TargetedDump>(d: &D) {
     let truck = global_dump_truck();
-    let dump = format!("{:?}", d);
+    let dump = format!("{:#?}", d);
     let target = D::target();
     truck.dumps[target as usize] = Some(dump);
     for hook in truck.hooks.iter() {

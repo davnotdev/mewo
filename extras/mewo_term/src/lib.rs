@@ -14,20 +14,16 @@ impl Plugin for TermPlugin {
     }
 
     fn plugin(pb: PluginBuilder) -> PluginBuilder {
-        pb.event::<TermKeyEvent>()
-            .comp::<TermQuad>()
-            .event::<TermInitEvent>()
-            .event::<TermResizeEvent>()
-            .resource::<TermContext>()
-            .sys(term_event)
-            .sys(term_startup)
-            .sys(term_render)
+        pb.bootstrap(term_startup)
+            .update(term_event)
+            .update(term_render)
     }
 }
 
-fn term_startup(mut sb: SystemBus, _: Events<Startup>, _: Components<(), ()>) {
+fn term_startup(mut sb: SystemBus<(), ()>) -> Option<()> {
     sb.resources.insert(TermContext::create());
     sb.events.event(TermInitEvent);
+    Some(())
 }
 
 #[derive(Clone)]
@@ -45,12 +41,12 @@ impl TermContext {
         TermContext
     }
 
-    pub fn width(&self) -> i32 {
-        unsafe { tb_width() }
+    pub fn width(&self) -> f32 {
+        unsafe { tb_width() as f32 }
     }
 
-    pub fn height(&self) -> i32 {
-        unsafe { tb_height() }
+    pub fn height(&self) -> f32 {
+        unsafe { tb_height() as f32 }
     }
 }
 

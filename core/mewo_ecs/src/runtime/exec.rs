@@ -1,16 +1,16 @@
-pub use super::{galaxy::GalaxyRuntime, system::System};
+pub use super::{
+    galaxy::GalaxyRuntime,
+    system::{EarlySystemPhase, System},
+};
 pub use crate::{
     component::EntityTransformer,
-    event::{EventHash, EventInsert, EventManager, EventOption},
+    data::{hash_type, ValueDrop},
+    event::{EventHash, EventInsert, EventManager, EventTypeEntry},
     resource::ResourceManager,
 };
 
 pub trait Executor {
-    fn create(
-        evmgr: EventManager,
-        rcmgr: ResourceManager,
-        systems: Vec<System>,
-        galaxy: &mut GalaxyRuntime,
-    ) -> Self;
+    fn create(systems: Vec<System>) -> Self;
+    fn early(&mut self, galaxy: &mut GalaxyRuntime);
     fn update(&mut self, galaxy: &mut GalaxyRuntime);
 }

@@ -1,93 +1,77 @@
 use super::exec::{
-    EntityTransformer, EventHash, EventInsert, EventManager, EventOption, Executor, GalaxyRuntime,
-    ResourceManager, System,
+    EarlySystemPhase, EntityTransformer, EventInsert, Executor, GalaxyRuntime, System,
 };
-use crate::unbug::prelude::*;
-use std::collections::HashMap;
+use crate::debug::prelude::*;
 
 pub struct StraightExecutor {
-    evmgr: EventManager,
-    rcmgr: ResourceManager,
     ev_insert: EventInsert,
     entity_transformer: EntityTransformer,
-    systems: HashMap<EventOption<EventHash>, Vec<System>>,
+    systems: Vec<System>,
 }
 
 impl Executor for StraightExecutor {
-    fn create(
-        mut evmgr: EventManager,
-        rcmgr: ResourceManager,
-        systems: Vec<System>,
-        galaxy: &mut GalaxyRuntime,
-    ) -> Self {
-        let mut ev_insert = EventInsert::create();
-        let mut entity_transformer = EntityTransformer::create();
-        let mut exec_systems = HashMap::new();
-        for system in systems.into_iter() {
-            match system.event {
-                EventOption::Startup => system.run(
-                    galaxy,
-                    None,
-                    &rcmgr,
-                    &mut ev_insert,
-                    &mut entity_transformer,
-                ),
-                _ => {
-                    if let None = exec_systems.get_mut(&system.event) {
-                        exec_systems.insert(system.event, Vec::new());
-                    }
-                    exec_systems.get_mut(&system.event).unwrap().push(system);
-                }
-            }
-        }
-
-        while let Some(transform) = entity_transformer.get() {
-            galaxy.apply_transform(transform);
-        }
-
-        evmgr.flush(&mut ev_insert).iex_unwrap();
-
+    fn create(systems: Vec<System>) -> Self {
         StraightExecutor {
-            evmgr,
-            rcmgr,
-            ev_insert,
-            entity_transformer,
-            systems: exec_systems,
+            ev_insert: EventInsert::create(),
+            entity_transformer: EntityTransformer::create(),
+            systems,
         }
     }
 
+    fn early(&mut self, galaxy: &mut GalaxyRuntime) {
+        self.run_early_phase(galaxy, EarlySystemPhase::Bootstrap);
+        self.run_early_phase(galaxy, EarlySystemPhase::Startup);
+    }
+
     fn update(&mut self, galaxy: &mut GalaxyRuntime) {
-        for (&hash, systems) in self.systems.iter() {
-            match hash {
-                EventOption::Event(hash) => {
-                    for idx in 0..self.evmgr.get_event_count(hash).iex_unwrap() {
-                        let ev = self.evmgr.get_event(hash, idx).iex_unwrap();
-                        for system in systems.iter() {
-                            system.run(
-                                galaxy,
-                                Some(ev),
-                                &self.rcmgr,
-                                &mut self.ev_insert,
-                                &mut self.entity_transformer,
-                            );
-                        }
+        self.systems.iter().for_each(|sys| {
+            sys.run(galaxy, &mut self.ev_insert, &mut self.entity_transformer);
+        });
+        self.post_update(galaxy);
+    }
+}
+
+impl StraightExecutor {
+    fn run_early_phase(&mut self, galaxy: &mut GalaxyRuntime, phase: EarlySystemPhase) {
+        let phase_count = self
+            .systems
+            .iter()
+            .filter(|sys| sys.phase == Some(phase))
+            .count();
+        let mut done_count = 0;
+        let mut tick_count = 0;
+        loop {
+            self.systems.retain(|sys| {
+                if sys.phase == Some(phase) {
+                    if sys.run(galaxy, &mut self.ev_insert, &mut self.entity_transformer) {
+                        done_count += 1;
+                        return false;
                     }
                 }
-                EventOption::Update => {
-                    for system in systems.iter() {
-                        system.run(
-                            galaxy,
-                            None,
-                            &self.rcmgr,
-                            &mut self.ev_insert,
-                            &mut self.entity_transformer,
-                        );
-                    }
-                }
-                EventOption::Startup => unreachable!(),
+                true
+            });
+
+            self.post_update(galaxy);
+
+            if done_count == phase_count {
+                break;
             }
+
+            if tick_count > 5 {
+                panic!("Phase {:?} is taking too long", phase);
+            }
+
+            tick_count += 1;
         }
-        self.evmgr.flush(&mut self.ev_insert).iex_unwrap();
+    }
+
+    fn post_update(&mut self, galaxy: &mut GalaxyRuntime) {
+        galaxy
+            .get_event_manager()
+            .write()
+            .unwrap()
+            .flush(&mut self.ev_insert)
+            .iex_unwrap();
         while let Some(transform) = self.entity_transformer.get() {
             galaxy.apply_transform(transform);
         }

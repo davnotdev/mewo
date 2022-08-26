@@ -86,6 +86,9 @@ impl ArchetypeAccessKeyManager {
             lock_map.insert(cty, Self::query_type_to_lock_state(ctq));
         }
 
+        if lock_map.get_dense().len() == 0 {
+            None?
+        }
         Some(lock_map)
     }
 }
@@ -101,6 +104,7 @@ impl ArchetypeAccessKeyEntry {
     }
 }
 
+#[derive(Debug)]
 pub struct ArchetypeAccess<'amgr> {
     idx: usize,
     lock_count: &'amgr AtomicU32,
@@ -147,6 +151,7 @@ impl ArchetypeManager {
         akid: ArchetypeAccessKey,
         idx: usize,
     ) -> Result<Option<ArchetypeAccess<'_>>> {
+        debug_request_dump(DebugDumpTargets::ArchetypeManager);
         if let Some(access) = self.akmgr.get(akid) {
             if let Some((gid, lock_map)) = access.accesses.get(idx) {
                 let gid = *gid;

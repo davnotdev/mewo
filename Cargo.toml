@@ -4,6 +4,8 @@ members = [
   "core/mewo_log",
   "core/rust_burrito",
   "std/mewo_common",
+  "std/mewo_window",
   "extras/mewo_term",
   "sandbox/termbird",
+  "sandbox/winbox",
 ]

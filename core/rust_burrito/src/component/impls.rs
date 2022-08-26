@@ -1,44 +1,11 @@
 use super::*;
 
-impl EventAccess for () {
-    fn hash() -> EventOption<EventHash> {
-        EventOption::Update
-    }
-
-    fn data(_: &Option<*const u8>) -> &Self {
-        &()
-    }
-}
-
-impl EventAccess for Startup {
-    fn hash() -> EventOption<EventHash> {
-        EventOption::Startup
-    }
-
-    fn data(_: &Option<*const u8>) -> &Self {
-        &Startup
-    }
-}
-
-impl<E> EventAccess for E
-where
-    E: Event,
-{
-    fn hash() -> EventOption<EventHash> {
-        EventOption::Event(E::event_hash())
-    }
-
-    fn data(ev: &Option<*const u8>) -> &Self {
-        unsafe { (ev.unwrap() as *const E).as_ref().unwrap() }
-    }
-}
-
 impl<C> ComponentAccess for &C
 where
     C: Component,
 {
     fn access() -> (ComponentHash, ComponentQueryAccessType) {
-        (C::component_hash(), ComponentQueryAccessType::Read)
+        (C::component_trait_hash(), ComponentQueryAccessType::Read)
     }
 
     fn data(idx: usize, data: &Option<*const u8>) -> Self {
@@ -51,7 +18,11 @@ where
     }
 
     fn hash() -> ComponentHash {
-        C::component_hash()
+        C::component_trait_hash()
+    }
+
+    fn maybe_register(ctymgr: &mut ComponentTypeManager) {
+        let _ = ctymgr.register(C::component_trait_entry());
     }
 }
 
@@ -60,7 +31,7 @@ where
     C: Component,
 {
     fn access() -> (ComponentHash, ComponentQueryAccessType) {
-        (C::component_hash(), ComponentQueryAccessType::Write)
+        (C::component_trait_hash(), ComponentQueryAccessType::Write)
     }
 
     fn data(idx: usize, data: &Option<*const u8>) -> Self {
@@ -73,7 +44,11 @@ where
     }
 
     fn hash() -> ComponentHash {
-        C::component_hash()
+        C::component_trait_hash()
+    }
+
+    fn maybe_register(ctymgr: &mut ComponentTypeManager) {
+        let _ = ctymgr.register(C::component_trait_entry());
     }
 }
 
@@ -82,7 +57,10 @@ where
     C: Component,
 {
     fn access() -> (ComponentHash, ComponentQueryAccessType) {
-        (C::component_hash(), ComponentQueryAccessType::OptionRead)
+        (
+            C::component_trait_hash(),
+            ComponentQueryAccessType::OptionRead,
+        )
     }
 
     fn data(idx: usize, data: &Option<*const u8>) -> Self {
@@ -94,7 +72,11 @@ where
     }
 
     fn hash() -> ComponentHash {
-        C::component_hash()
+        C::component_trait_hash()
+    }
+
+    fn maybe_register(ctymgr: &mut ComponentTypeManager) {
+        let _ = ctymgr.register(C::component_trait_entry());
     }
 }
 
@@ -103,7 +85,10 @@ where
     C: Component,
 {
     fn access() -> (ComponentHash, ComponentQueryAccessType) {
-        (C::component_hash(), ComponentQueryAccessType::OptionWrite)
+        (
+            C::component_trait_hash(),
+            ComponentQueryAccessType::OptionWrite,
+        )
     }
 
     fn data(idx: usize, data: &Option<*const u8>) -> Self {
@@ -115,7 +100,11 @@ where
     }
 
     fn hash() -> ComponentHash {
-        C::component_hash()
+        C::component_trait_hash()
+    }
+
+    fn maybe_register(ctymgr: &mut ComponentTypeManager) {
+        let _ = ctymgr.register(C::component_trait_entry());
     }
 }
 
@@ -131,6 +120,8 @@ impl ComponentAccesses for () {
     fn datas(_: usize, _: &Vec<Option<*const u8>>) -> Self {
         ()
     }
+
+    fn maybe_register(_ctymgr: &mut ComponentTypeManager) {}
 }
 
 impl<C0> ComponentAccesses for C0
@@ -147,6 +138,10 @@ where
 
     fn datas(idx: usize, datas: &Vec<Option<*const u8>>) -> Self {
         C0::data(idx, datas.get(0).unwrap())
+    }
+
+    fn maybe_register(ctymgr: &mut ComponentTypeManager) {
+        C0::maybe_register(ctymgr);
     }
 }
 
@@ -169,6 +164,40 @@ where
             C1::data(idx, datas.get(1).unwrap()),
         )
     }
+
+    fn maybe_register(ctymgr: &mut ComponentTypeManager) {
+        C0::maybe_register(ctymgr);
+        C1::maybe_register(ctymgr);
+    }
+}
+
+impl<C0, C1, C2> ComponentAccesses for (C0, C1, C2)
+where
+    C0: ComponentAccess,
+    C1: ComponentAccess,
+    C2: ComponentAccess,
+{
+    fn accesses() -> Vec<(ComponentHash, ComponentQueryAccessType)> {
+        vec![C0::access(), C1::access(), C2::access()]
+    }
+
+    fn hashes() -> Vec<ComponentHash> {
+        vec![C0::hash(), C1::hash(), C2::hash()]
+    }
+
+    fn datas(idx: usize, datas: &Vec<Option<*const u8>>) -> Self {
+        (
+            C0::data(idx, datas.get(0).unwrap()),
+            C1::data(idx, datas.get(1).unwrap()),
+            C2::data(idx, datas.get(2).unwrap()),
+        )
+    }
+
+    fn maybe_register(ctymgr: &mut ComponentTypeManager) {
+        C0::maybe_register(ctymgr);
+        C1::maybe_register(ctymgr);
+        C2::maybe_register(ctymgr);
+    }
 }
 
 impl<C> ComponentFilter for With<C>
@@ -176,7 +205,11 @@ where
     C: Component,
 {
     fn filter() -> (ComponentHash, ComponentQueryFilterType) {
-        (C::component_hash(), ComponentQueryFilterType::With)
+        (C::component_trait_hash(), ComponentQueryFilterType::With)
+    }
+
+    fn maybe_register(ctymgr: &mut ComponentTypeManager) {
+        let _ = ctymgr.register(C::component_trait_entry());
     }
 }
 
@@ -185,7 +218,11 @@ where
     C: Component,
 {
     fn filter() -> (ComponentHash, ComponentQueryFilterType) {
-        (C::component_hash(), ComponentQueryFilterType::Without)
+        (C::component_trait_hash(), ComponentQueryFilterType::Without)
+    }
+
+    fn maybe_register(ctymgr: &mut ComponentTypeManager) {
+        let _ = ctymgr.register(C::component_trait_entry());
     }
 }
 
@@ -193,6 +230,8 @@ impl ComponentFilters for () {
     fn filters() -> Vec<(ComponentHash, mewo_ecs::ComponentQueryFilterType)> {
         Vec::new()
     }
+
+    fn maybe_register(_ctymgr: &mut ComponentTypeManager) {}
 }
 
 impl<CF0> ComponentFilters for CF0
@@ -201,6 +240,10 @@ where
 {
     fn filters() -> Vec<(ComponentHash, mewo_ecs::ComponentQueryFilterType)> {
         vec![CF0::filter()]
+    }
+
+    fn maybe_register(ctymgr: &mut ComponentTypeManager) {
+        CF0::maybe_register(ctymgr);
     }
 }
 
@@ -211,5 +254,10 @@ where
 {
     fn filters() -> Vec<(ComponentHash, mewo_ecs::ComponentQueryFilterType)> {
         vec![CF0::filter(), CF1::filter()]
+    }
+
+    fn maybe_register(ctymgr: &mut ComponentTypeManager) {
+        CF0::maybe_register(ctymgr);
+        CF1::maybe_register(ctymgr);
     }
 }

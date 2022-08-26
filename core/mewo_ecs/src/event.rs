@@ -1,20 +1,9 @@
 use crate::{
     data::{DVec, TVal, ValueDrop},
-    unbug::prelude::*,
+    debug::prelude::*,
     HashType,
 };
 use std::collections::HashMap;
-use std::hash::Hash;
-
-#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash)]
-pub enum EventOption<T>
-where
-    T: Clone + Copy + Eq + PartialEq + Hash,
-{
-    Startup,
-    Update,
-    Event(T),
-}
 
 pub type EventHash = HashType;
 

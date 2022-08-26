@@ -35,11 +35,7 @@ pub fn log_hook_file(location: Option<String>) -> DebugLogHook {
         let default_location =
             std::env::temp_dir().to_str().unwrap().to_string() + "/mewotk_log.log";
         let location = location.as_ref().unwrap_or(&default_location);
-        let mut file = if let Ok(file) = std::fs::OpenOptions::new()
-            .write(true)
-            .append(true)
-            .open(location)
-        {
+        let mut file = if let Ok(file) = std::fs::OpenOptions::new().write(true).open(location) {
             file
         } else {
             return;
@@ -50,11 +46,11 @@ pub fn log_hook_file(location: Option<String>) -> DebugLogHook {
 }
 
 #[derive(Clone)]
-pub struct DumpTargetMask(Vec<DebugDumpTargets>);
+pub struct DumpTargetMask(pub Vec<DebugDumpTargets>);
 
 fn dump_hook_msg(target: DebugDumpTargets) -> String {
     let dump = debug_request_dump(target).unwrap_or("Unavaliable".to_string());
-    format!("Dumping `{:?}` >>\n{}\n<<\n\n", target, dump)
+    format!("\t--- Dumping `{:?}` ---\n{}\n<<\n\n", target, dump)
 }
 
 pub fn dump_hook_stderr() -> DebugDumpHook {

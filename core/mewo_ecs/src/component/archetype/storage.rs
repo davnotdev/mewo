@@ -1,7 +1,7 @@
 use super::*;
 use crate::{
     data::{DVec, IndividualLock, LockState, SparseSet},
-    unbug::prelude::*,
+    debug::prelude::*,
 };
 
 #[allow(dead_code)]

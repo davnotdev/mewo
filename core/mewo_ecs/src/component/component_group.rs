@@ -1,5 +1,5 @@
 use super::{ComponentGroupId, ComponentTypeId};
-use crate::unbug::prelude::*;
+use crate::debug::prelude::*;
 
 pub struct ComponentGroupModify {
     data: Vec<ComponentTypeId>,

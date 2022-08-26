@@ -1,44 +1,44 @@
-use super::{entity::EntityBus, event::EventBus, resource::ResourceBus};
+use super::{
+    component::{ComponentAccesses, ComponentFilters, Components},
+    entity::EntityBus,
+    event::EventBus,
+    resource::ResourceBus,
+};
 
-pub struct SystemBus<'exec> {
+pub struct SystemBus<'galaxy, 'exec, CA, CF> {
     pub entities: EntityBus<'exec>,
-    pub events: EventBus<'exec>,
+    pub events: EventBus<'galaxy, 'exec>,
     pub resources: ResourceBus<'exec>,
-    idx: usize,
-    len: usize,
+    pub components: Components<'exec, CA, CF>,
 }
 
-impl<'exec> SystemBus<'exec> {
+impl<'galaxy, 'exec, CA, CF> SystemBus<'galaxy, 'exec, CA, CF>
+where
+    CA: ComponentAccesses,
+    CF: ComponentFilters,
+{
     pub fn create(
         entities: EntityBus<'exec>,
-        events: EventBus<'exec>,
+        events: EventBus<'galaxy, 'exec>,
         resources: ResourceBus<'exec>,
-        idx: usize,
-        len: usize,
+        components: Components<'exec, CA, CF>,
     ) -> Self {
         SystemBus {
             entities,
             events,
+            components,
             resources,
-            idx,
-            len,
         }
     }
-
-    pub fn get_execution_count(&self) -> usize {
-        self.len
-    }
-
-    pub fn get_current_execution(&self) -> usize {
-        self.idx
-    }
-
-    pub fn is_first(&self) -> bool {
-        self.idx == 0
-    }
-
-    pub fn is_last(&self) -> bool {
-        assert!(self.len != 0);
-        self.idx == self.len - 1
-    }
 }
+
+//  fn my_system(
+//      sb: SystemBus<
+//          (&A, &mut B, Option<&C>, Option<&mut D>),
+//          (With<A>, Without<B>),
+//      >,
+//  ) -> () | Option<T>
+//  CA=ComponentAccesses, CF=ComponentFilters
+
+pub type SystemFunction<CA, CF, O> = fn(SystemBus<CA, CF>) -> O;
+pub type EarlySystemFunction<CA, CF> = fn(SystemBus<CA, CF>) -> Option<()>;

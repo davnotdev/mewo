@@ -1,87 +1,112 @@
 use super::{
-    component::Component,
+    component::{ComponentAccesses, ComponentFilters, Components},
     entity::EntityBus,
-    event::{Event, EventBus},
-    params::{
-        ComponentAccesses, ComponentFilters, Components, EventAccess, Events, SystemFunction,
-    },
-    resource::{Resource, ResourceBus},
-    system::SystemBus,
+    event::EventBus,
+    resource::ResourceBus,
+    system::{EarlySystemFunction, SystemBus, SystemFunction},
 };
-use mewo_ecs::{
-    ComponentTypeEntry, EventTypeEntry, RawPlugin, ResourceTypeEntry, SystemBuilder, ValueClone,
-    ValueDrop,
-};
+use mewo_ecs::{EarlySystemPhase, Galaxy, RawPlugin, SystemBuilder};
 
-pub struct PluginBuilder {
+pub struct PluginBuilder<'galaxy> {
+    galaxy: &'galaxy Galaxy,
     raw_plugin: RawPlugin,
 }
 
-impl PluginBuilder {
-    pub fn create<SELFP: Plugin>() -> Self {
+impl<'galaxy> PluginBuilder<'galaxy> {
+    pub fn create<SELFP: Plugin>(galaxy: &'galaxy Galaxy) -> Self {
         PluginBuilder {
+            galaxy,
             raw_plugin: RawPlugin {
                 name: SELFP::name().to_string(),
-                deps: Vec::new(),
-                events: Vec::new(),
                 systems: Vec::new(),
-                resources: Vec::new(),
-                components: Vec::new(),
             },
         }
     }
 
-    pub fn dep<P: Plugin>(self) -> Self {
-        self.raw_dep(P::name().to_string())
-    }
-
-    pub fn raw_dep(mut self, name: String) -> Self {
-        self.raw_plugin.deps.push(name);
-        self
-    }
-
-    pub fn comp<C: Component>(self) -> Self {
-        let size = C::component_size();
-        self.raw_comp(ComponentTypeEntry {
-            name: C::component_name().to_string(),
-            size,
-            hash: C::component_hash(),
-            drop: ValueDrop::create(C::component_drop_callback()),
-            clone: ValueClone::create(C::component_clone_callback()),
-        })
-    }
-
-    pub fn raw_comp(mut self, entry: ComponentTypeEntry) -> Self {
-        self.raw_plugin.components.push(entry);
-        self
-    }
-
-    pub fn sys<EA, CA, CF>(self, function: SystemFunction<EA, CA, CF>) -> Self
+    fn generic_early<CA, CF>(
+        self,
+        function: EarlySystemFunction<CA, CF>,
+        phase: EarlySystemPhase,
+    ) -> Self
     where
-        EA: 'static + EventAccess,
         CA: 'static + ComponentAccesses,
         CF: 'static + ComponentFilters,
     {
+        {
+            let mut ctymgr = self.galaxy.get_component_type_manager().write().unwrap();
+            CA::maybe_register(&mut ctymgr);
+            CF::maybe_register(&mut ctymgr);
+        }
         self.raw_sys(SystemBuilder::create(
-            std::any::type_name::<SystemFunction<EA, CA, CF>>().to_string(),
-            EA::hash(),
+            std::any::type_name::<EarlySystemFunction<CA, CF>>().to_string(),
             CA::accesses(),
             CF::filters(),
             mewo_ecs::SystemFunction(Box::new(
-                move |galaxy, ev, rcmgr, ev_insert, transformer, access, idx, count| {
-                    (function)(
-                        SystemBus::create(
-                            EntityBus::create(transformer),
-                            EventBus::create(ev_insert),
-                            ResourceBus::create(rcmgr),
-                            idx,
-                            count,
+                move |galaxy, ev_insert, entity_transformer, access_key| {
+                    (function)(SystemBus::create(
+                        EntityBus::create(galaxy.get_component_type_manager(), entity_transformer),
+                        EventBus::create(galaxy.get_event_manager(), ev_insert),
+                        ResourceBus::create(galaxy.get_resource_manager()),
+                        Components::create(
+                            galaxy.get_component_type_manager(),
+                            galaxy.get_archetype_manager(),
+                            access_key,
                         ),
-                        Events::create(ev),
-                        Components::create(galaxy.get_component_type_manager(), &access),
-                    );
+                    ))
+                    .is_some()
                 },
             )),
+            Some(phase),
+        ))
+    }
+
+    pub fn bootstrap<CA, CF>(self, function: EarlySystemFunction<CA, CF>) -> Self
+    where
+        CA: 'static + ComponentAccesses,
+        CF: 'static + ComponentFilters,
+    {
+        Self::generic_early(self, function, EarlySystemPhase::Bootstrap)
+    }
+
+    pub fn startup<CA, CF>(self, function: EarlySystemFunction<CA, CF>) -> Self
+    where
+        CA: 'static + ComponentAccesses,
+        CF: 'static + ComponentFilters,
+    {
+        Self::generic_early(self, function, EarlySystemPhase::Startup)
+    }
+
+    pub fn update<CA, CF, O>(self, function: SystemFunction<CA, CF, O>) -> Self
+    where
+        CA: 'static + ComponentAccesses,
+        CF: 'static + ComponentFilters,
+        O: 'static,
+    {
+        {
+            let mut ctymgr = self.galaxy.get_component_type_manager().write().unwrap();
+            CA::maybe_register(&mut ctymgr);
+            CF::maybe_register(&mut ctymgr);
+        }
+        self.raw_sys(SystemBuilder::create(
+            std::any::type_name::<SystemFunction<CA, CF, O>>().to_string(),
+            CA::accesses(),
+            CF::filters(),
+            mewo_ecs::SystemFunction(Box::new(
+                move |galaxy, ev_insert, entity_transformer, access_key| {
+                    (function)(SystemBus::create(
+                        EntityBus::create(galaxy.get_component_type_manager(), entity_transformer),
+                        EventBus::create(galaxy.get_event_manager(), ev_insert),
+                        ResourceBus::create(galaxy.get_resource_manager()),
+                        Components::create(
+                            galaxy.get_component_type_manager(),
+                            galaxy.get_archetype_manager(),
+                            access_key,
+                        ),
+                    ));
+                    true
+                },
+            )),
+            None,
         ))
     }
 
@@ -89,32 +114,6 @@ impl PluginBuilder {
         sys.set_plugin_name(self.raw_plugin.name.clone());
         self.raw_plugin.systems.push(sys);
         self
-    }
-
-    pub fn raw_event(mut self, ev: EventTypeEntry) -> Self {
-        self.raw_plugin.events.push(ev);
-        self
-    }
-
-    pub fn event<E: Event>(self) -> Self {
-        self.raw_event(EventTypeEntry {
-            size: E::event_size(),
-            name: E::event_name(),
-            hash: E::event_hash(),
-            drop: ValueDrop::create(E::event_drop_callback()),
-        })
-    }
-
-    pub fn raw_resource(mut self, rc: ResourceTypeEntry) -> Self {
-        self.raw_plugin.resources.push(rc);
-        self
-    }
-
-    pub fn resource<R: Resource>(self) -> Self {
-        self.raw_resource(ResourceTypeEntry {
-            name: R::resource_name(),
-            hash: R::resource_hash(),
-        })
     }
 
     pub fn build(self) -> RawPlugin {
@@ -125,4 +124,10 @@ impl PluginBuilder {
 pub trait Plugin {
     fn name() -> &'static str;
     fn plugin(pb: PluginBuilder) -> PluginBuilder;
+    fn build_plugin(galaxy: &Galaxy) -> RawPlugin
+    where
+        Self: Sized,
+    {
+        Self::plugin(PluginBuilder::create::<Self>(galaxy)).build()
+    }
 }

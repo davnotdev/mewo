@@ -41,12 +41,14 @@ pub enum InternalErrorType {
 }
 
 pub enum DebugMessageLevel {
+    Error,
     Internal,
 }
 
 impl ToString for DebugMessageLevel {
     fn to_string(&self) -> String {
         match self {
+            Self::Error => "Error",
             Self::Internal => "Internal",
         }
         .to_string()
@@ -66,6 +68,20 @@ pub type DebugLogHook = Box<dyn Fn(&DebugMessage)>;
 pub fn debug_insert_log_hook(hook: DebugLogHook) {
     let hooks = global_log_hooks();
     hooks.push(hook);
+}
+
+pub fn debug_error<S>(msg: S)
+where
+    S: ToString,
+{
+    let dbg_msg = DebugMessage {
+        line: line!(),
+        file: file!().to_string(),
+        msg: msg.to_string(),
+        dumps: vec![],
+        level: DebugMessageLevel::Internal,
+    };
+    run_log_hooks(dbg_msg);
 }
 
 fn global_log_hooks() -> &'static mut Vec<DebugLogHook> {

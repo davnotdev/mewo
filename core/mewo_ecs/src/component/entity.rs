@@ -1,4 +1,4 @@
-use crate::{unbug::prelude::*, Id};
+use crate::{debug::prelude::*, Id};
 
 type EntityId = Id;
 

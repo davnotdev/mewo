@@ -17,7 +17,7 @@ pub struct TermResizeEvent {
 }
 impl Event for TermResizeEvent {}
 
-pub fn term_event(mut sb: SystemBus, _: Events<()>, _: Components<(), ()>) {
+pub fn term_event(mut sb: SystemBus<(), ()>) {
     let mut ev = std::mem::MaybeUninit::uninit();
     let ev = unsafe {
         //  60fps right?

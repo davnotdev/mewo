@@ -1,34 +1,40 @@
 use super::galaxy::GalaxyRuntime;
 use crate::{
     component::{
-        ArchetypeAccess, ArchetypeAccessKey, ArchetypeManager, ComponentGroupQuery, ComponentHash,
+        ArchetypeAccessKey, ArchetypeManager, ComponentGroupQuery, ComponentHash,
         ComponentQueryAccessType, ComponentQueryFilterType, ComponentTypeId, ComponentTypeManager,
         EntityTransformer,
     },
-    event::{EventHash, EventInsert, EventOption},
-    resource::ResourceManager,
-    unbug::prelude::*,
+    event::EventInsert,
+    debug::prelude::*,
 };
 
+//  Returning true signals that bootstrapping / startup is complete.
+//  For updates, return true. (This has no effect).
 pub struct SystemFunction(
     pub  Box<
         dyn Fn(
             &GalaxyRuntime,
-            Option<*const u8>,
-            &ResourceManager,
             &mut EventInsert,
             &mut EntityTransformer,
-            Option<ArchetypeAccess>,
-            usize,
-            usize,
-        ),
+            ArchetypeAccessKey,
+            // Option<ArchetypeAccess>,
+            // usize,
+            // usize,
+        ) -> bool,
     >,
 );
 
 impl std::fmt::Debug for SystemFunction {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "")
+        write!(f, "SystemFunction")
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EarlySystemPhase {
+    Bootstrap,
+    Startup,
 }
 
 #[derive(Debug)]
@@ -37,25 +43,25 @@ pub struct SystemBuilder {
     plugin_name: Option<String>,
     component_accesses: Vec<(ComponentHash, ComponentQueryAccessType)>,
     component_filters: Vec<(ComponentHash, ComponentQueryFilterType)>,
-    event: EventOption<EventHash>,
     function: SystemFunction,
+    phase: Option<EarlySystemPhase>,
 }
 
 impl SystemBuilder {
     pub fn create(
         name: String,
-        event: EventOption<EventHash>,
         component_accesses: Vec<(ComponentHash, ComponentQueryAccessType)>,
         component_filters: Vec<(ComponentHash, ComponentQueryFilterType)>,
         function: SystemFunction,
+        phase: Option<EarlySystemPhase>,
     ) -> SystemBuilder {
         SystemBuilder {
             name,
             plugin_name: None,
             component_accesses,
             component_filters,
-            event,
             function,
+            phase,
         }
     }
 
@@ -108,8 +114,8 @@ impl SystemBuilder {
             plugin_name,
             function: self.function,
             archetype_access_key: amgr.create_archetype_access_key(query.clone())?,
-            event: self.event,
             query,
+            phase: self.phase,
         })
     }
 }
@@ -119,42 +125,41 @@ pub struct System {
     pub plugin_name: String,
     pub query: ComponentGroupQuery,
     pub archetype_access_key: ArchetypeAccessKey,
-    pub event: EventOption<EventHash>,
     pub function: SystemFunction,
+    pub phase: Option<EarlySystemPhase>,
 }
 
 impl System {
     pub fn run(
         &self,
         galaxy: &GalaxyRuntime,
-        ev: Option<*const u8>,
-        rcmgr: &ResourceManager,
         ev_insert: &mut EventInsert,
         transformer: &mut EntityTransformer,
-    ) {
-        let akid = self.archetype_access_key;
-        let amgr = galaxy.get_archetype_manager();
-        let count = amgr.get_access_count(akid);
-        for idx in 0..count {
-            loop {
-                if let Some(access) = amgr.try_access(akid, idx).iex_unwrap() {
-                    (self.function.0)(
-                        galaxy,
-                        ev,
-                        rcmgr,
-                        ev_insert,
-                        transformer,
-                        Some(access),
-                        idx,
-                        count,
-                    );
-                    break;
-                }
-                std::hint::spin_loop();
-            }
-        }
-        if count == 0 {
-            (self.function.0)(galaxy, ev, rcmgr, ev_insert, transformer, None, 0, 1);
-        }
+    ) -> bool {
+        // let akid = self.archetype_access_key;
+        // let amgr = galaxy.get_archetype_manager();
+        // let count = amgr.get_access_count(akid);
+        // let mut res = true;
+        // for idx in 0..count {
+        //     loop {
+        //         if let Some(access) = amgr.try_access(akid, idx).iex_unwrap() {
+        //             res = res
+        //                 && (self.function.0)(
+        //                     galaxy,
+        //                     ev_insert,
+        //                     transformer,
+        //                     Some(access),
+        //                     idx,
+        //                     count,
+        //                 );
+        //             break;
+        //         }
+        //         std::hint::spin_loop();
+        //     }
+        // }
+        // if count == 0 {
+        //     res = res && (self.function.0)(galaxy, ev_insert, transformer, None, 0, 1);
+        // }
+        (self.function.0)(galaxy, ev_insert, transformer, self.archetype_access_key)
     }
 }
