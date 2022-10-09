@@ -30,14 +30,13 @@ impl<K, V> SparseSet<K, V> {
 
     pub fn insert(&mut self, idx: usize, data: V) {
         if let Some(old_data) = self.get_mut(idx) {
-            *old_data = data; 
+            *old_data = data;
         } else {
             if idx >= self.sparse.len() {
                 self.sparse.resize(idx + 1, None);
             }
             self.dense.push((idx, data));
             *self.sparse.get_mut(idx).unwrap() = Some(self.dense.len() - 1);
-
         }
     }
 

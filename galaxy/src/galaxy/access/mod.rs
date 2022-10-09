@@ -1,4 +1,4 @@
-use super::{GenericComponent, ComponentTypeId, ComponentTypePlanet, QueryAccessType};
+use super::{ComponentTypeId, ComponentTypePlanet, GenericComponent, QueryAccessType};
 use parking_lot::RwLock;
 
 //  TODO EXT: Use macros!
