@@ -1,4 +1,5 @@
-pub use crate::ecs::{
-    ComponentStorageType, Entity, EventModify, StorageModifyTransform, StorageTransform,
+pub use crate::data::ValueDuplicate;
+pub use crate::ecs::{Entity, EventModify, StorageModifyTransform, StorageTransform};
+pub use crate::galaxy::{
+    CheapComponent, Component, Event, Galaxy, GenericComponent, Resource, UniqueComponent,
 };
-pub use crate::galaxy::{Component, Event, Executor, Galaxy, Resource};

@@ -1,16 +1,16 @@
 mod drop;
 mod dvec;
 mod sparse;
-mod typeentry;
-//  mod sync;
+mod threadlocal;
 mod tval;
+mod typeentry;
 
-pub use drop::{CloneFunction, DropFunction, ValueClone, ValueDrop};
+pub use drop::{CloneFunction, DropFunction, ValueDrop, ValueDuplicate};
 pub use dvec::DVec;
 pub use sparse::SparseSet;
-pub use typeentry::TypeEntry;
-//  pub use sync::{CacheLine, Local, LockState};
+pub use threadlocal::{ThreadLocal, ThreadLocalGuard};
 pub use tval::TVal;
+pub use typeentry::TypeEntry;
 
 use std::{
     collections::hash_map::DefaultHasher,
@@ -29,6 +29,6 @@ pub fn data_drop<T>() -> ValueDrop {
     ValueDrop::new(|ptr| unsafe { drop(std::ptr::read(ptr as *const T as *mut T)) })
 }
 
-pub fn data_clone<T: Clone>() -> ValueClone {
-    ValueClone::new(|src, dst| unsafe { *(dst as *mut T) = (&*(src as *const T)).clone() })
+pub fn data_clone<T: Clone>() -> ValueDuplicate {
+    ValueDuplicate::Clone(|src, dst| unsafe { *(dst as *mut T) = (&*(src as *const T)).clone() })
 }

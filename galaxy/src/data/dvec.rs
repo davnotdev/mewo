@@ -1,5 +1,6 @@
 use super::drop::ValueDrop;
 
+#[derive(Debug)]
 pub struct DVec {
     data: Vec<u8>,
     len: usize, //  used only for zero sized values
@@ -36,6 +37,21 @@ impl DVec {
             }
         }
         self.len += additional;
+    }
+
+    pub unsafe fn resize_zeroed(&mut self, additional: usize) {
+        self.data.reserve(additional * self.data_size);
+        for _ in 0..additional {
+            for _ in 0..self.data_size {
+                self.data.push(0);
+            }
+        }
+        self.len += additional;
+    }
+
+    pub unsafe fn unsafe_truncate(&mut self, len: usize) {
+        self.data.truncate(self.data_size * len);
+        self.len = len;
     }
 
     pub fn swap_remove(&mut self, idx: usize) -> Option<()> {
@@ -89,6 +105,10 @@ impl DVec {
     pub fn len(&self) -> usize {
         self.len
     }
+
+    pub fn size(&self) -> usize {
+        self.data_size
+    }
 }
 
 impl Drop for DVec {
@@ -97,26 +117,6 @@ impl Drop for DVec {
             let val = self.get(idx).unwrap();
             self.drop.call(val);
         }
-    }
-}
-
-impl std::fmt::Debug for DVec {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "DVec {{")?;
-        write!(f, "\n\tlength: {} size: {}", self.len, self.data_size)?;
-        let mut true_idx = 0;
-        if self.data_size == 0 {
-            write!(f, "(Zero Sized)")?;
-        } else {
-            for (idx, byte) in self.data.iter().enumerate() {
-                if idx % self.data_size == 0 {
-                    write!(f, "\n\t{}", true_idx)?;
-                    true_idx += 1;
-                }
-                write!(f, " {:02x}", byte)?;
-            }
-        }
-        write!(f, "}}\n")
     }
 }
 

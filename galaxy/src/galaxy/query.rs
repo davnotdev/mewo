@@ -1,16 +1,18 @@
 use super::{
-    ComponentAccessesNormal, ComponentAccessesOptional, Executor, Galaxy, QueryAccess,
+    ComponentAccessesNormal, ComponentAccessesOptional, Entity, Galaxy, QueryAccess,
     QueryFilterType, QueryId, QueryLockType,
 };
 use std::marker::PhantomData;
 
-pub struct QueryInfo<'gal, EX, CA> {
+//  TODO OPT: Don't write lock storages if they are len == 0.
+
+pub struct QueryInfo<'gal, CA> {
     incomplete: QueryAccess,
-    galaxy: &'gal Galaxy<EX>,
+    galaxy: &'gal Galaxy,
     phantom: PhantomData<CA>,
 }
 
-impl<'gal, EX, CA> QueryInfo<'gal, EX, CA>
+impl<'gal, CA> QueryInfo<'gal, CA>
 where
     CA: ComponentAccessesOptional,
 {
@@ -36,7 +38,7 @@ where
         self
     }
 
-    pub fn iter(self) -> QueryIter<'gal, EX, CA> {
+    pub fn iter(self) -> QueryIter<'gal, CA> {
         let Self {
             incomplete,
             galaxy,
@@ -62,21 +64,27 @@ where
             },
             current_storage: None,
             current_datas: None,
+            current_entities: None,
+            current_storage_len: None,
             group_idx: 0,
             storage_idx: 0,
             phantom: PhantomData,
         }
     }
+
+    pub fn eiter(self) -> QueryEIter<'gal, CA> {
+        QueryEIter { qiter: self.iter() }
+    }
 }
 
-struct QueryStorageGuard<'gal, EX> {
+struct QueryStorageGuard<'gal> {
     qid: QueryId,
     group_idx: usize,
-    galaxy: &'gal Galaxy<EX>,
+    galaxy: &'gal Galaxy,
 }
 
-impl<'gal, EX> QueryStorageGuard<'gal, EX> {
-    pub fn new(qid: QueryId, group_idx: usize, galaxy: &'gal Galaxy<EX>) -> Self {
+impl<'gal> QueryStorageGuard<'gal> {
+    pub fn new(qid: QueryId, group_idx: usize, galaxy: &'gal Galaxy) -> Self {
         let qp = galaxy.qp.read();
         let access = qp.get_access(qid).unwrap();
         let (gid, ord, locks) = &access.groups[group_idx];
@@ -96,7 +104,7 @@ impl<'gal, EX> QueryStorageGuard<'gal, EX> {
     }
 }
 
-impl<'gal, EX> Drop for QueryStorageGuard<'gal, EX> {
+impl<'gal> Drop for QueryStorageGuard<'gal> {
     fn drop(&mut self) {
         let qp = self.galaxy.qp.read();
         let access = qp.get_access(self.qid).unwrap();
@@ -112,17 +120,31 @@ impl<'gal, EX> Drop for QueryStorageGuard<'gal, EX> {
     }
 }
 
-pub struct QueryIter<'gal, EX, CA> {
-    galaxy: &'gal Galaxy<EX>,
+pub struct QueryIter<'gal, CA> {
+    galaxy: &'gal Galaxy,
     qid: QueryId,
-    current_storage: Option<QueryStorageGuard<'gal, EX>>,
+    current_storage: Option<QueryStorageGuard<'gal>>,
     current_datas: Option<Vec<Option<*const u8>>>,
+    current_entities: Option<*const Entity>,
+    current_storage_len: Option<usize>,
     group_idx: usize,
     storage_idx: usize,
     phantom: PhantomData<CA>,
 }
 
-impl<'gal, EX, CA> Iterator for QueryIter<'gal, EX, CA>
+impl<'gal, CA> QueryIter<'gal, CA> {
+    //  Call after next.
+    pub fn get_current_entity(&self) -> Entity {
+        unsafe {
+            *self
+                .current_entities
+                .unwrap()
+                .offset((self.storage_idx - 1) as isize)
+        }
+    }
+}
+
+impl<'gal, CA> Iterator for QueryIter<'gal, CA>
 where
     CA: ComponentAccessesOptional,
 {
@@ -139,30 +161,34 @@ where
         let (gid, ord, locks) = &access.groups[self.group_idx];
 
         if let None = self.current_storage {
+            self.current_storage_len = Some(self.galaxy.sp.read().get_len(*gid));
             self.current_storage = Some(QueryStorageGuard::new(
                 self.qid,
                 self.group_idx,
                 &self.galaxy,
             ));
+            let sp = self.galaxy.sp.read();
             self.current_datas = Some(
                 ord.get_components()
                     .iter()
                     .map(|cid| {
                         let lock = locks.get(cid).unwrap();
                         match lock {
-                            QueryLockType::Read => self.galaxy.sp.read().get_read(*gid, *cid),
-                            QueryLockType::Write => self.galaxy.sp.read().get_write(*gid, *cid),
+                            QueryLockType::Read => sp.get_read(*gid, *cid),
+                            QueryLockType::Write => sp.get_write(*gid, *cid),
                         }
                     })
                     .collect(),
             );
+            self.current_entities = Some(sp.get_entities(*gid).unwrap());
             self.storage_idx = 0;
         }
 
-        if self.storage_idx == self.galaxy.sp.read().get_len(*gid) {
+        if self.storage_idx == self.current_storage_len.unwrap() {
             self.group_idx += 1;
             self.current_storage = None;
             self.current_datas = None;
+            self.current_storage_len = None;
             return self.next();
         }
         let ret = CA::datas(&self.current_datas.as_ref().unwrap(), self.storage_idx);
@@ -171,11 +197,25 @@ where
     }
 }
 
-impl<EX> Galaxy<EX>
+pub struct QueryEIter<'gal, CA> {
+    qiter: QueryIter<'gal, CA>,
+}
+
+impl<'gal, CA> Iterator for QueryEIter<'gal, CA>
 where
-    EX: Executor,
+    CA: ComponentAccessesOptional,
 {
-    pub fn query<CA: ComponentAccessesOptional>(&self) -> QueryInfo<EX, CA> {
+    type Item = (Entity, CA);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let next = self.qiter.next()?;
+        let entity = self.qiter.get_current_entity();
+        Some((entity, next))
+    }
+}
+
+impl Galaxy {
+    pub fn query<CA: ComponentAccessesOptional>(&self) -> QueryInfo<CA> {
         CA::component_maybe_insert(&self.ctyp);
         QueryInfo {
             incomplete: QueryAccess {

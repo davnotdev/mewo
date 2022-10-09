@@ -1,5 +1,5 @@
 use super::{
-    Component, ComponentAccessesNonOptional, ComponentGroupId, Entity, Executor, Galaxy,
+    ComponentAccessesNonOptional, ComponentGroupId, Entity, Galaxy, GenericComponent,
     QueryAccessType, StorageModifyTransform, StorageTransform,
 };
 use crate::data::TVal;
@@ -9,16 +9,13 @@ pub trait EntityModifyOnly {}
 pub struct EntityModifyOnlyImpl;
 impl EntityModifyOnly for EntityModifyOnlyImpl {}
 
-pub struct EntityGetter<'gal, EX: Executor, T> {
-    galaxy: &'gal Galaxy<EX>,
+pub struct EntityGetter<'gal, T> {
+    galaxy: &'gal Galaxy,
     trans: Option<StorageTransform>,
     phantom: PhantomData<T>,
 }
 
-impl<'gal, EX, T> EntityGetter<'gal, EX, T>
-where
-    EX: Executor,
-{
+impl<'gal, T> EntityGetter<'gal, T> {
     pub fn get_entity(&self) -> Entity {
         match self.trans.as_ref().unwrap() {
             StorageTransform::Insert(e, _) | StorageTransform::Modify(e, _) => *e,
@@ -26,7 +23,7 @@ where
         }
     }
 
-    pub fn insert<C: Component + 'static>(&mut self, c: C) -> &mut Self {
+    pub fn insert<C: GenericComponent + 'static>(&mut self, c: C) -> &mut Self {
         self.component_maybe_insert::<C>();
         match self.trans.as_mut().unwrap() {
             StorageTransform::Insert(_, modify) | StorageTransform::Modify(_, modify) => {
@@ -45,7 +42,7 @@ where
         self
     }
 
-    pub fn remove<C: Component + 'static>(&mut self) -> &mut Self {
+    pub fn remove<C: GenericComponent + 'static>(&mut self) -> &mut Self {
         self.component_maybe_insert::<C>();
         match self.trans.as_mut().unwrap() {
             StorageTransform::Insert(_, modify) | StorageTransform::Modify(_, modify) => {
@@ -56,23 +53,23 @@ where
         self
     }
 
-    fn component_maybe_insert<C: Component + 'static>(&self) {
+    fn component_maybe_insert<C: GenericComponent + 'static>(&self) {
         let id = C::mewo_component_id();
         if self.galaxy.ctyp.read().get_type(id).is_err() {
             let mut ctyp = self.galaxy.ctyp.write();
-            ctyp.insert_type(id, C::mewo_component_info()).unwrap();
+            ctyp.insert_type(id, C::mewo_component_type_entry())
+                .unwrap();
         }
     }
 }
 
-impl<'gal, EX, T> EntityGetter<'gal, EX, T>
+impl<'gal, T> EntityGetter<'gal, T>
 where
-    EX: Executor,
     T: EntityModifyOnly,
 {
     pub fn get<CA: ComponentAccessesNonOptional>(
         &mut self,
-    ) -> Option<EntityComponentGetter<'gal, EX, CA>> {
+    ) -> Option<EntityComponentGetter<'gal, CA>> {
         Some(EntityComponentGetter::new(
             self.galaxy,
             *match self.trans.as_ref().unwrap() {
@@ -83,38 +80,33 @@ where
     }
 }
 
-impl<'gal, EX, T> Drop for EntityGetter<'gal, EX, T>
-where
-    EX: Executor,
-{
+impl<'gal, T> Drop for EntityGetter<'gal, T> {
     fn drop(&mut self) {
         self.galaxy
-            .exec
             .get_storage_transforms()
             .push(std::mem::replace(&mut self.trans, None).unwrap());
     }
 }
 
-pub struct EntityComponentGetter<'gal, EX, CA: ComponentAccessesNonOptional> {
-    galaxy: &'gal Galaxy<EX>,
+pub struct EntityComponentGetter<'gal, CA: ComponentAccessesNonOptional> {
+    galaxy: &'gal Galaxy,
     group_id: ComponentGroupId,
     entity_idx: usize,
     datas: Vec<*const u8>,
     phantom: PhantomData<CA>,
 }
 
-impl<'gal, EX, CA> EntityComponentGetter<'gal, EX, CA>
+impl<'gal, CA> EntityComponentGetter<'gal, CA>
 where
     CA: ComponentAccessesNonOptional,
 {
-    pub fn new(galaxy: &'gal Galaxy<EX>, entity: Entity) -> Self {
+    pub fn new(galaxy: &'gal Galaxy, entity: Entity) -> Self {
         CA::component_maybe_insert(&galaxy.ctyp);
         let sp = galaxy.sp.read();
         let cgp = galaxy.cgp.read();
         let gid = sp.get_entity_group(entity).unwrap();
         let group = cgp.get_group(gid).unwrap();
         let query = CA::infos();
-        println!("{:?} {:?}", group, query);
         let mut datas: Vec<Option<*const u8>> = query.iter().map(|_| None).collect();
         for &cty in group.get_components() {
             for (idx, &(qcty, qlock)) in query.iter().enumerate() {
@@ -151,7 +143,7 @@ where
     }
 }
 
-impl<'gal, EX, CA> Drop for EntityComponentGetter<'gal, EX, CA>
+impl<'gal, CA> Drop for EntityComponentGetter<'gal, CA>
 where
     CA: ComponentAccessesNonOptional,
 {
@@ -177,11 +169,8 @@ where
     }
 }
 
-impl<EX> Galaxy<EX>
-where
-    EX: Executor,
-{
-    pub fn insert_entity(&self) -> EntityGetter<EX, ()> {
+impl Galaxy {
+    pub fn insert_entity(&self) -> EntityGetter<()> {
         let e = self.ep.write().insert();
         EntityGetter {
             galaxy: self,
@@ -190,7 +179,7 @@ where
         }
     }
 
-    pub fn get_entity(&self, entity: Entity) -> Option<EntityGetter<EX, EntityModifyOnlyImpl>> {
+    pub fn get_entity(&self, entity: Entity) -> Option<EntityGetter<EntityModifyOnlyImpl>> {
         self.ep.read().has_entity(entity).then_some(EntityGetter {
             galaxy: self,
             trans: Some(StorageTransform::Modify(
@@ -202,8 +191,7 @@ where
     }
 
     pub fn remove_entity(&self, e: Entity) {
-        self.exec
-            .get_storage_transforms()
+        self.get_storage_transforms()
             .push(StorageTransform::Remove(e));
     }
 }

@@ -14,7 +14,7 @@ pub trait ComponentAccessesNonOptional {
 
 impl<C> ComponentAccessNonOptional for &C
 where
-    C: Component + 'static,
+    C: GenericComponent + 'static,
 {
     fn info() -> (ComponentTypeId, QueryAccessType) {
         (C::mewo_component_id(), QueryAccessType::Read)
@@ -31,7 +31,7 @@ where
 
 impl<C> ComponentAccessNonOptional for &mut C
 where
-    C: Component + 'static,
+    C: GenericComponent + 'static,
 {
     fn info() -> (ComponentTypeId, QueryAccessType) {
         (C::mewo_component_id(), QueryAccessType::Write)

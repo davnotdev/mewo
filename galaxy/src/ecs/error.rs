@@ -1,7 +1,4 @@
-use super::{
-    ComponentGroupId, ComponentInfo, ComponentTypeId, Entity, EventId, QueryAccess, QueryId,
-    ResourceId,
-};
+use super::{ComponentGroupId, ComponentTypeId, Entity, EventId, QueryAccess, QueryId, ResourceId};
 pub use crate::data::TypeEntry;
 
 pub type Result<T> = std::result::Result<T, ECSError>;
@@ -21,7 +18,7 @@ pub enum ErrorType {
     },
     ComponentTypePlanetInsertType {
         id: ComponentTypeId,
-        ty: ComponentInfo,
+        ty: TypeEntry,
     },
     ComponentTypePlanetGetType {
         id: ComponentTypeId,

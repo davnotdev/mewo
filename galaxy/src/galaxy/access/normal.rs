@@ -7,7 +7,7 @@ pub trait ComponentAccessesNormal {
 
 impl<C0> ComponentAccessesNormal for C0
 where
-    C0: Component + 'static,
+    C0: GenericComponent + 'static,
 {
     fn hashes() -> Vec<ComponentTypeId> {
         vec![C0::mewo_component_id()]

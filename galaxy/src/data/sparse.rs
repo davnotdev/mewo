@@ -29,11 +29,16 @@ impl<K, V> SparseSet<K, V> {
     }
 
     pub fn insert(&mut self, idx: usize, data: V) {
-        if idx >= self.sparse.len() {
-            self.sparse.resize(idx + 1, None);
+        if let Some(old_data) = self.get_mut(idx) {
+            *old_data = data; 
+        } else {
+            if idx >= self.sparse.len() {
+                self.sparse.resize(idx + 1, None);
+            }
+            self.dense.push((idx, data));
+            *self.sparse.get_mut(idx).unwrap() = Some(self.dense.len() - 1);
+
         }
-        self.dense.push((idx, data));
-        *self.sparse.get_mut(idx).unwrap() = Some(self.dense.len() - 1);
     }
 
     pub fn remove(&mut self, idx: usize) -> Option<V> {
@@ -81,6 +86,10 @@ impl<K, V> SparseSet<K, V> {
     pub fn get_dense(&self) -> &Vec<(usize, V)> {
         &self.dense
     }
+
+    pub fn get_mut_dense(&mut self) -> &mut Vec<(usize, V)> {
+        &mut self.dense
+    }
 }
 
 impl<K, V> std::fmt::Debug for SparseSet<K, V>
@@ -90,12 +99,12 @@ where
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "SparseSet<{}, {}> {{\n",
+            "SparseSet<{}, {}> {{",
             std::any::type_name::<K>(),
             std::any::type_name::<V>()
         )?;
         for (k, v) in self.get_dense() {
-            write!(f, "\t{} -> {:?}\n", k, v)?;
+            write!(f, "({} -> {:?})", k, v)?;
         }
         write!(f, "}}")
     }

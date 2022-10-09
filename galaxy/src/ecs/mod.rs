@@ -7,8 +7,7 @@ mod resource;
 mod storage;
 
 pub use component::{
-    ComponentGroup, ComponentGroupId, ComponentGroupPlanet, ComponentInfo, ComponentStorageType,
-    ComponentTypeId, ComponentTypePlanet,
+    ComponentGroup, ComponentGroupId, ComponentGroupPlanet, ComponentTypeId, ComponentTypePlanet,
 };
 pub use entity::{Entity, EntityPlanet};
 pub use event::{EventId, EventModify, EventPlanet};

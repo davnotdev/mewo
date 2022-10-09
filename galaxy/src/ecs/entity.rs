@@ -41,7 +41,8 @@ impl EntityPlanet {
                 return Entity(idx, *generation);
             }
         }
-        self.entities.resize(self.entities.len() + 128, (0, false));
+        //  TODO OPT: Change 0 to 128, but for now, it's too annoying.
+        self.entities.resize(self.entities.len() + 1, (0, false));
         self.insert()
     }
 
@@ -53,7 +54,7 @@ impl EntityPlanet {
             Err(err)?
         }
         *exists = false;
-        *generation += 21;
+        *generation += 1;
         Ok(())
     }
 

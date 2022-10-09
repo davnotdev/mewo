@@ -96,7 +96,7 @@ impl QueryPlanet {
     }
 
     //  When inserting an access, we may need to create a new group which
-    //  also requires upding the storage and query planets.
+    //  also requires updating the storage and query planets.
     fn group_maybe_insert(
         &mut self,
         type_planet: &RwLock<ComponentTypePlanet>,
@@ -111,7 +111,9 @@ impl QueryPlanet {
             .iter()
             .for_each(|(cty, _)| group_modify.insert(*cty));
         group_modify.build();
-        if let None = group_planet.read().get_group_id(&group) {
+        let group_planet_read = group_planet.read();
+        if group_planet_read.get_group_id(&group).is_none() {
+            drop(group_planet_read);
             let mut group_planet = group_planet.write();
             let gid = group_planet.insert(group.clone());
             self.update_with_group(&group_planet, gid)?;

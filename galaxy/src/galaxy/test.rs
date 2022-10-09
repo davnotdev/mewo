@@ -18,66 +18,32 @@ use crate::prelude::*;
 fn test_galaxy_og() {
     #[derive(Default, Debug, Clone, Copy, PartialEq)]
     struct Data(usize, usize, usize);
-    impl Component for Data {
-        fn mewo_component_storage_type() -> ComponentStorageType {
-            ComponentStorageType::Special
+    impl CheapComponent for Data {}
+    impl GenericComponent for Data {
+        fn mewo_component_duplicate() -> ValueDuplicate {
+            <Data as CheapComponent>::mewo_component_duplicate()
         }
     }
 
-    #[derive(Debug, Clone, PartialEq)]
+    #[derive(Debug, Clone, Copy, PartialEq)]
     struct With;
-    impl Component for With {
-        fn mewo_component_storage_type() -> ComponentStorageType {
-            ComponentStorageType::Special
+    impl CheapComponent for With {}
+    impl GenericComponent for With {
+        fn mewo_component_duplicate() -> ValueDuplicate {
+            <With as CheapComponent>::mewo_component_duplicate()
         }
     }
 
-    #[derive(Debug, Clone, PartialEq)]
+    #[derive(Debug, Clone, Copy, PartialEq)]
     struct Without;
-    impl Component for Without {
-        fn mewo_component_storage_type() -> ComponentStorageType {
-            ComponentStorageType::Special
+    impl CheapComponent for Without {}
+    impl GenericComponent for Without {
+        fn mewo_component_duplicate() -> ValueDuplicate {
+            <Without as CheapComponent>::mewo_component_duplicate()
         }
     }
 
-    struct BasicExec {
-        ev_modify: EventModify,
-        st_trans: Vec<StorageTransform>,
-    }
-
-    impl Executor for BasicExec {
-        fn new() -> Self
-        where
-            Self: Sized,
-        {
-            BasicExec {
-                ev_modify: (EventModify::new()),
-                st_trans: (Vec::new()),
-            }
-        }
-        fn get_event_modify(&self) -> &mut EventModify {
-            unsafe { &mut *(&self.ev_modify as *const EventModify as *mut EventModify) }
-        }
-        fn get_storage_transforms(&self) -> &mut Vec<StorageTransform> {
-            unsafe {
-                &mut *(&self.st_trans as *const Vec<StorageTransform> as *mut Vec<StorageTransform>)
-            }
-        }
-
-        fn get_all_event_modify(&mut self) -> &mut [EventModify] {
-            std::slice::from_mut(&mut self.ev_modify)
-        }
-
-        fn get_all_storage_transforms(&mut self) -> &mut [Vec<StorageTransform>] {
-            std::slice::from_mut(&mut self.st_trans)
-        }
-
-        fn clear_all_storage_transforms(&mut self) {
-            self.st_trans.clear();
-        }
-    }
-
-    let mut galaxy = Galaxy::<BasicExec>::new();
+    let mut galaxy = Galaxy::new();
     let a = galaxy.insert_entity().insert(Data::default()).get_entity();
     let b = galaxy
         .insert_entity()
@@ -108,7 +74,10 @@ fn test_galaxy_og() {
 
     galaxy.update();
 
-    assert!(galaxy.get_entity(a).unwrap().get::<&Data>().unwrap().get() == &Data(1, 0, 1));
-    assert!(galaxy.get_entity(b).unwrap().get::<&Data>().unwrap().get() == &Data(1, 1, 1));
-    assert!(galaxy.get_entity(c).unwrap().get::<&Data>().unwrap().get() == &Data(1, 0, 0));
+    let a = galaxy.get_entity(a).unwrap().get::<&Data>().unwrap().get();
+    let b = galaxy.get_entity(b).unwrap().get::<&Data>().unwrap().get();
+    let c = galaxy.get_entity(c).unwrap().get::<&Data>().unwrap().get();
+    assert_eq!(a, &Data(1, 0, 1));
+    assert_eq!(b, &Data(1, 1, 1));
+    assert_eq!(c, &Data(1, 0, 0));
 }

@@ -1,76 +1,92 @@
 use super::{Galaxy, ResourceId};
-use crate::data::{data_clone, data_drop, hash_type, TVal, TypeEntry, ValueClone, ValueDrop};
-use std::ops::Deref;
+use crate::data::{data_drop, hash_type, TVal, TypeEntry, ValueDrop, ValueDuplicate};
+use std::ops::{Deref, DerefMut};
 
-pub trait Resource: Clone {
+pub trait Resource {
     fn mewo_resource_id() -> ResourceId
     where
-        Self: 'static,
+        Self: 'static + Sized,
     {
         ResourceId::from_hash(hash_type::<Self>())
     }
 
-    fn mewo_resource_type_entry() -> TypeEntry {
+    fn mewo_resource_type_entry() -> TypeEntry
+    where
+        Self: Sized,
+    {
         TypeEntry {
             size: Self::mewo_resource_size(),
             name: String::from(std::any::type_name::<Self>()),
             drop: Self::mewo_resource_drop(),
-            clone: Self::mewo_resource_clone(),
+            dup: Self::mewo_resource_dup(),
         }
     }
 
-    fn mewo_resource_size() -> usize {
+    fn mewo_resource_size() -> usize
+    where
+        Self: Sized,
+    {
         std::mem::size_of::<Self>()
     }
 
-    fn mewo_resource_drop() -> ValueDrop {
+    fn mewo_resource_drop() -> ValueDrop
+    where
+        Self: Sized,
+    {
         data_drop::<Self>()
     }
 
-    fn mewo_resource_clone() -> ValueClone {
-        data_clone::<Self>()
+    fn mewo_resource_dup() -> ValueDuplicate {
+        //  Resource cloning is never used.
+        ValueDuplicate::None
     }
 }
 
-pub struct ResourceReadGuard<'gal, EX, R> {
-    r: Option<&'gal R>,
-    galaxy: &'gal Galaxy<EX>,
+pub struct ResourceReadGuard<'gal, R> {
+    r: &'gal R,
+    galaxy: &'gal Galaxy,
     id: ResourceId,
 }
 
-impl<'gal, EX, R> Drop for ResourceReadGuard<'gal, EX, R> {
+impl<'gal, R> Drop for ResourceReadGuard<'gal, R> {
     fn drop(&mut self) {
         self.galaxy.rcp.read().get_read_unlock(self.id).unwrap();
     }
 }
 
-impl<'gal, EX, R> Deref for ResourceReadGuard<'gal, EX, R> {
-    type Target = Option<&'gal R>;
+impl<'gal, R> Deref for ResourceReadGuard<'gal, R> {
+    type Target = R;
     fn deref(&self) -> &Self::Target {
         &self.r
     }
 }
 
-pub struct ResourceWriteGuard<'gal, EX, R> {
-    r: Option<&'gal mut R>,
-    galaxy: &'gal Galaxy<EX>,
+pub struct ResourceWriteGuard<'gal, R> {
+    r: &'gal mut R,
+    galaxy: &'gal Galaxy,
     id: ResourceId,
 }
 
-impl<'gal, EX, R> Drop for ResourceWriteGuard<'gal, EX, R> {
+impl<'gal, R> Drop for ResourceWriteGuard<'gal, R> {
     fn drop(&mut self) {
         self.galaxy.rcp.read().get_write_unlock(self.id).unwrap();
     }
 }
 
-impl<'gal, EX, R> Deref for ResourceWriteGuard<'gal, EX, R> {
-    type Target = Option<&'gal mut R>;
+impl<'gal, R> Deref for ResourceWriteGuard<'gal, R> {
+    type Target = &'gal mut R;
     fn deref(&self) -> &Self::Target {
         &self.r
     }
 }
 
-impl<EX> Galaxy<EX> {
+impl<'gal, R> DerefMut for ResourceWriteGuard<'gal, R> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.r
+    }
+}
+
+impl Galaxy {
     pub fn insert_resource<R: Resource + 'static>(&self, r: R) -> &Self {
         self.resource_maybe_insert::<R>();
         let id = R::mewo_resource_id();
@@ -100,31 +116,39 @@ impl<EX> Galaxy<EX> {
         self
     }
 
-    pub fn get_resource<R: Resource + 'static>(&self) -> ResourceReadGuard<EX, R> {
+    pub fn get_resource<R: Resource + 'static>(&self) -> Option<ResourceReadGuard<R>> {
         let id = R::mewo_resource_id();
         let rcp = self.rcp.read();
         let rc = rcp.get_read_lock(id).unwrap();
-        ResourceReadGuard {
-            r: rc.as_ref().map(|val| unsafe { &*(val.get() as *const R) }),
-            id,
-            galaxy: self,
+        if rc.is_none() {
+            None?
         }
-    }
-
-    pub fn get_mut_resource<R: Resource + 'static>(&self) -> ResourceWriteGuard<EX, R> {
-        let id = R::mewo_resource_id();
-        let rcp = self.rcp.read();
-        let rc = rcp.get_read_lock(id).unwrap();
-        ResourceWriteGuard {
+        Some(ResourceReadGuard {
             r: rc
                 .as_ref()
-                .map(|val| unsafe { &mut *(val.get() as *const R as *mut R) }),
+                .map(|val| unsafe { &*(val.get() as *const R) })
+                .unwrap(),
             id,
             galaxy: self,
-        }
+        })
     }
 
-    //  TODO EXT: with_resource, with_mut_resource
+    pub fn get_mut_resource<R: Resource + 'static>(&self) -> Option<ResourceWriteGuard<R>> {
+        let id = R::mewo_resource_id();
+        let rcp = self.rcp.read();
+        let rc = rcp.get_read_lock(id).unwrap();
+        if rc.is_none() {
+            None?
+        }
+        Some(ResourceWriteGuard {
+            r: rc
+                .as_ref()
+                .map(|val| unsafe { &mut *(val.get() as *const R as *mut R) })
+                .unwrap(),
+            id,
+            galaxy: self,
+        })
+    }
 
     fn resource_maybe_insert<R: Resource + 'static>(&self) {
         let rcp = self.rcp.read();

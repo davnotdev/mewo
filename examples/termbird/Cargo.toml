@@ -1,0 +1,13 @@
+[package]
+name = "termbird"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+mewo_galaxy = { version = "*", path = "../../galaxy" }
+mewo_galaxy_derive = { version = "*", path = "../../galaxy_derive" }
+mewo_common = { version = "*", path = "../../std/common" }
+termbox-sys = "0.2"
+rand = "0.8.5" 

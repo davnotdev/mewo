@@ -2,18 +2,6 @@ use super::error::*;
 use crate::data::TypeEntry;
 use std::collections::HashMap;
 
-#[derive(Debug, Clone)]
-pub struct ComponentInfo {
-    pub ty: TypeEntry,
-    pub storage_ty: ComponentStorageType,
-}
-
-#[derive(Debug, Clone)]
-pub enum ComponentStorageType {
-    Special,
-    CopyCat,
-}
-
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub struct ComponentTypeId(u64);
 
@@ -38,7 +26,7 @@ impl ComponentGroupId {
 
 #[derive(Debug)]
 pub struct ComponentTypePlanet {
-    components: HashMap<ComponentTypeId, ComponentInfo>,
+    components: HashMap<ComponentTypeId, TypeEntry>,
 }
 
 impl ComponentTypePlanet {
@@ -48,7 +36,7 @@ impl ComponentTypePlanet {
         }
     }
 
-    pub fn insert_type(&mut self, id: ComponentTypeId, ty: ComponentInfo) -> Result<()> {
+    pub fn insert_type(&mut self, id: ComponentTypeId, ty: TypeEntry) -> Result<()> {
         if self.components.contains_key(&id) {
             Err(ecs_err!(
                 ErrorType::ComponentTypePlanetInsertType { id, ty: ty.clone() },
@@ -59,7 +47,7 @@ impl ComponentTypePlanet {
         Ok(())
     }
 
-    pub fn get_type(&self, id: ComponentTypeId) -> Result<&ComponentInfo> {
+    pub fn get_type(&self, id: ComponentTypeId) -> Result<&TypeEntry> {
         self.components
             .get(&id)
             .ok_or(ecs_err!(ErrorType::ComponentTypePlanetGetType { id }, self))

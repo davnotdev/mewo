@@ -1,4 +1,7 @@
 [workspace]
 members = [
-    "galaxy"
+    "galaxy",
+    "galaxy_derive",
+    "std/common",
+    "examples/termbird/"
 ]

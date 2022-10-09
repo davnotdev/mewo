@@ -1,43 +1,50 @@
-use super::{EventId, Executor, Galaxy};
-use crate::data::{data_clone, data_drop, hash_type, TVal, TypeEntry, ValueClone, ValueDrop};
+use super::{EventId, Galaxy};
+use crate::data::{data_drop, hash_type, TVal, TypeEntry, ValueDrop, ValueDuplicate};
 
-pub trait Event: Clone {
+pub trait Event {
     fn mewo_event_id() -> EventId
     where
-        Self: 'static,
+        Self: 'static + Sized,
     {
         EventId::from_hash(hash_type::<Self>())
     }
 
-    fn mewo_event_type_entry() -> TypeEntry {
+    fn mewo_event_type_entry() -> TypeEntry
+    where
+        Self: Sized,
+    {
         TypeEntry {
             size: Self::mewo_event_size(),
             name: String::from(std::any::type_name::<Self>()),
             drop: Self::mewo_event_drop(),
-            clone: Self::mewo_event_clone(),
+            dup: Self::mewo_event_dup(),
         }
     }
 
-    fn mewo_event_size() -> usize {
+    fn mewo_event_size() -> usize
+    where
+        Self: Sized,
+    {
         std::mem::size_of::<Self>()
     }
 
-    fn mewo_event_drop() -> ValueDrop {
+    fn mewo_event_drop() -> ValueDrop
+    where
+        Self: Sized,
+    {
         data_drop::<Self>()
     }
 
-    fn mewo_event_clone() -> ValueClone {
-        data_clone::<Self>()
+    fn mewo_event_dup() -> ValueDuplicate {
+        //  Event cloning is never used.
+        ValueDuplicate::None
     }
 }
 
-impl<EX> Galaxy<EX>
-where
-    EX: Executor,
-{
+impl Galaxy {
     pub fn insert_event<E: Event + 'static>(&self, e: E) -> &Self {
         self.event_maybe_insert::<E>();
-        self.exec.get_event_modify().insert(
+        self.get_event_modify().insert(
             E::mewo_event_id(),
             TVal::new(
                 E::mewo_event_size(),
@@ -50,6 +57,7 @@ where
     }
 
     pub fn get_events<E: Event + 'static>(&self) -> &[E] {
+        self.event_maybe_insert::<E>();
         let evp = self.evp.read();
         let events = evp.get_events(E::mewo_event_id()).unwrap();
         //  TODO CHK: Test for zero sized values.
