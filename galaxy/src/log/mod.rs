@@ -38,7 +38,7 @@ pub enum LogTarget {
 pub struct LogRecord {
     pub time: Instant,
     pub line: u32,
-    pub file: &'static str,
+    pub file: String,
     pub target: LogTarget,
     pub msg: String,
 }
@@ -155,7 +155,7 @@ macro_rules! minfo {
         let record = LogRecord {
             time: std::time::Instant::now(),
             line: line!(),
-            file: file!(),
+            file: file!().to_string(),
             target: LogTarget::Info,
             msg: format!($($arg)*),
         };
@@ -169,7 +169,7 @@ macro_rules! mwarn {
         let record = LogRecord {
             time: std::time::Instant::now(),
             line: line!(),
-            file: file!(),
+            file: file!().to_string(),
             target: LogTarget::Warn,
             msg: format!($($arg)*),
         };
@@ -183,7 +183,7 @@ macro_rules! merr {
         let record = LogRecord {
             time: std::time::Instant::now(),
             line: line!(),
-            file: file!(),
+            file: file!().to_string(),
             target: LogTarget::Error,
             msg: format!($($arg)*),
         };

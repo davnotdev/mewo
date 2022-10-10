@@ -3,5 +3,7 @@ members = [
     "galaxy",
     "galaxy_derive",
     "std/common",
-    "examples/termbird/"
+    "std/window",
+    "examples/termbird/",
+    "examples/winbox/",
 ]
