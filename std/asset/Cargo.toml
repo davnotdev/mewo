@@ -1,0 +1,12 @@
+[package]
+name = "mewo_asset"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+mewo_galaxy = { version = "*", path = "../../galaxy" }
+mewo_galaxy_derive = { version = "*", path = "../../galaxy_derive" }
+parking_lot = "0.12"
+notify = "4.0.12"
