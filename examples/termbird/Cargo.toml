@@ -9,5 +9,5 @@ edition = "2021"
 mewo_galaxy = { version = "*", path = "../../galaxy" }
 mewo_galaxy_derive = { version = "*", path = "../../galaxy_derive" }
 mewo_common = { version = "*", path = "../../std/common" }
-termbox-sys = "0.2"
+termbox-sys = { version = "0.2", git = "https://github.com/davnotdev/termbox-sys" }
 rand = "0.8.5" 
