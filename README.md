@@ -16,7 +16,7 @@ untested (T),
 or excluded due to broken dependencies (D).
 
 | Crate | Functionality | Clippy |
-| --- | --- |
+| --- | --- | --- |
 | `mewo_galaxy` | K | I |
 | `mewo_galaxy_derive` | K | I |
 | `mewo_asset` | T | I |
@@ -24,3 +24,4 @@ or excluded due to broken dependencies (D).
 | `mewo_window` | K | I |
 | `termbird` | K | I |
 | `winbox` | K | I |
+
