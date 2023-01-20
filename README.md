@@ -15,8 +15,6 @@ incomplete (I),
 untested (T),
 or excluded due to broken dependencies (D).
 
-Hoppeless.
-
 | Crate                | Functionality | Clippy |
 | -------------------- | ------------- | ------ |
 | `mewo_galaxy`        | K             | K      |
