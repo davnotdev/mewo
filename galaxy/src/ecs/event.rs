@@ -50,13 +50,13 @@ impl EventPlanet {
         for (_, (_, data)) in self.events.iter_mut() {
             data.clear();
         }
-        let events = std::mem::replace(&mut modify.events, Vec::new());
+        let events = std::mem::take(&mut modify.events);
         let err = ecs_err!(ErrorType::EventPlanetModify, (&self, &events));
         for (id, val) in events.into_iter() {
             let ptr = val.get();
             self.events
                 .get_mut(&id)
-                .ok_or(err.clone())?
+                .ok_or_else(|| err.clone())?
                 .1
                 .resize(1, ptr);
             val.take();
@@ -77,5 +77,11 @@ impl EventModify {
 
     pub fn insert(&mut self, id: EventId, val: TVal) {
         self.events.push((id, val));
+    }
+}
+
+impl Default for EventModify {
+    fn default() -> Self {
+        Self::new()
     }
 }

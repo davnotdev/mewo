@@ -1,15 +1,15 @@
 use super::{Galaxy, ResourceId};
-use crate::data::{data_drop, hash_type, TVal, TypeEntry, ValueDrop, ValueDuplicate};
-use std::ops::{Deref, DerefMut};
+use crate::data::{data_drop, hash_type_and_val, TVal, TypeEntry, ValueDrop, ValueDuplicate};
+use std::{
+    hash::Hash,
+    ops::{Deref, DerefMut},
+};
+
+fn hash_resource_id<RH: Hash + 'static>(rh: RH) -> ResourceId {
+    ResourceId::from_hash(hash_type_and_val(rh))
+}
 
 pub trait Resource {
-    fn mewo_resource_id() -> ResourceId
-    where
-        Self: 'static + Sized,
-    {
-        ResourceId::from_hash(hash_type::<Self>())
-    }
-
     fn mewo_resource_type_entry() -> TypeEntry
     where
         Self: Sized,
@@ -57,7 +57,7 @@ impl<'gal, R> Drop for ResourceReadGuard<'gal, R> {
 impl<'gal, R> Deref for ResourceReadGuard<'gal, R> {
     type Target = R;
     fn deref(&self) -> &Self::Target {
-        &self.r
+        self.r
     }
 }
 
@@ -86,10 +86,12 @@ impl<'gal, R> DerefMut for ResourceWriteGuard<'gal, R> {
     }
 }
 
+//  TODO FIX: Validate Resource type to prevent unsafe usage.
+
 impl Galaxy {
-    pub fn insert_resource<R: Resource + 'static>(&self, r: R) -> &Self {
-        self.resource_maybe_insert::<R>();
-        let id = R::mewo_resource_id();
+    pub fn insert_resource<R: Resource, RH: Clone + Hash + 'static>(&self, rh: RH, r: R) -> &Self {
+        let id = hash_resource_id(rh.clone());
+        self.resource_maybe_insert::<R, RH>(rh);
         let rcp = self.rcp.write();
         {
             let val = rcp.get_write_lock(id).unwrap();
@@ -104,9 +106,9 @@ impl Galaxy {
         self
     }
 
-    pub fn remove_resource<R: Resource + 'static>(&self) -> &Self {
-        self.resource_maybe_insert::<R>();
-        let id = R::mewo_resource_id();
+    pub fn remove_resource<R: Resource, RH: Clone + Hash + 'static>(&self, rh: RH) -> &Self {
+        let id = hash_resource_id(rh.clone());
+        self.resource_maybe_insert::<R, RH>(rh);
         let rcp = self.rcp.write();
         {
             let val = rcp.get_write_lock(id).unwrap();
@@ -116,8 +118,11 @@ impl Galaxy {
         self
     }
 
-    pub fn get_resource<R: Resource + 'static>(&self) -> Option<ResourceReadGuard<R>> {
-        let id = R::mewo_resource_id();
+    pub fn get_resource<R: Resource, RH: Hash + 'static>(
+        &self,
+        rh: RH,
+    ) -> Option<ResourceReadGuard<R>> {
+        let id = hash_resource_id(rh);
         let rcp = self.rcp.read();
         let rc = rcp.get_read_lock(id).unwrap();
         if rc.is_none() {
@@ -133,8 +138,11 @@ impl Galaxy {
         })
     }
 
-    pub fn get_mut_resource<R: Resource + 'static>(&self) -> Option<ResourceWriteGuard<R>> {
-        let id = R::mewo_resource_id();
+    pub fn get_mut_resource<R: Resource, RH: Hash + 'static>(
+        &self,
+        rh: RH,
+    ) -> Option<ResourceWriteGuard<R>> {
+        let id = hash_resource_id(rh);
         let rcp = self.rcp.read();
         let rc = rcp.get_read_lock(id).unwrap();
         if rc.is_none() {
@@ -150,9 +158,9 @@ impl Galaxy {
         })
     }
 
-    fn resource_maybe_insert<R: Resource + 'static>(&self) {
+    fn resource_maybe_insert<R: Resource, RH: Hash + 'static>(&self, rh: RH) {
         let rcp = self.rcp.read();
-        let id = R::mewo_resource_id();
+        let id = hash_resource_id(rh);
         if rcp.get_type(id).is_none() {
             drop(rcp);
             let mut rcp = self.rcp.write();

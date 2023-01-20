@@ -3,8 +3,11 @@ members = [
     "galaxy",
     "galaxy_derive",
     "std/common",
-    "std/asset",
+    # "std/asset",
     "std/window",
+    "std/gpu",
     "examples/termbird/",
     "examples/winbox/",
+    "examples/gpu_test/"
 ]
+exclude = ["std/asset"]

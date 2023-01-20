@@ -8,7 +8,7 @@ pub trait ComponentAccessNonOptional {
 
 pub trait ComponentAccessesNonOptional {
     fn infos() -> Vec<(ComponentTypeId, QueryAccessType)>;
-    fn datas(datas: &Vec<*const u8>, idx: usize) -> Self;
+    fn datas(datas: &[*const u8], idx: usize) -> Self;
     fn component_maybe_insert(ctyp: &RwLock<ComponentTypePlanet>);
 }
 
@@ -21,7 +21,7 @@ where
     }
 
     fn data(data: *const u8, idx: usize) -> Self {
-        unsafe { (data as *const C).offset(idx as isize).as_ref().unwrap() }
+        unsafe { (data as *const C).add(idx).as_ref().unwrap() }
     }
 
     fn component_maybe_insert(ctyp: &RwLock<ComponentTypePlanet>) {
@@ -38,12 +38,7 @@ where
     }
 
     fn data(data: *const u8, idx: usize) -> Self {
-        unsafe {
-            (data as *const C as *mut C)
-                .offset(idx as isize)
-                .as_mut()
-                .unwrap()
-        }
+        unsafe { (data as *const C as *mut C).add(idx).as_mut().unwrap() }
     }
 
     fn component_maybe_insert(ctyp: &RwLock<ComponentTypePlanet>) {
@@ -59,7 +54,7 @@ where
         vec![C0::info()]
     }
 
-    fn datas(datas: &Vec<*const u8>, idx: usize) -> Self {
+    fn datas(datas: &[*const u8], idx: usize) -> Self {
         C0::data(datas[0], idx)
     }
 

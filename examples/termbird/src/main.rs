@@ -19,7 +19,7 @@ use term::{term_init, term_input, term_render};
 #[derive(Clone, Copy, CheapComponent)]
 struct Player(f32, f32);
 
-#[derive(Resource)]
+#[derive(SingleResource)]
 struct PlayerEntity(Entity);
 
 //  Stores (top, bottom)
@@ -30,7 +30,7 @@ struct Pipe(PipeSegment, PipeSegment);
 #[derive(Clone, Copy)]
 struct PipeSegment(f32, f32, i32, i32);
 
-#[derive(Resource)]
+#[derive(SingleResource)]
 struct TermContext;
 
 impl TermContext {
@@ -54,10 +54,10 @@ impl Drop for TermContext {
     }
 }
 
-#[derive(Clone, Resource)]
+#[derive(Clone, SingleResource)]
 struct GameBounds(f32, f32);
 
-#[derive(Resource)]
+#[derive(SingleResource)]
 struct PipeSpawnTimer(Timer);
 
 #[derive(Event)]
@@ -72,22 +72,25 @@ const PIPE_THICKNESS: i32 = 5;
 const PIPE_GAP: i32 = 10;
 
 fn game_init(g: &Galaxy) {
-    if let Some(tc) = g.get_resource::<TermContext>() {
+    if let Some(tc) = g.get_resource::<TermContext, _>(TermContext::single_resource()) {
         let width = tc.width() as f32;
         let height = tc.height() as f32;
 
         assert!(width >= MIN_X && height >= MIN_Y);
 
         let bounds = GameBounds(width, height);
-        g.insert_resource(bounds.clone());
+        g.insert_resource(GameBounds::single_resource(), bounds.clone());
 
         let player = g
             .insert_entity()
             .insert(Player(bounds.0 / 2.0, bounds.1 / 2.0))
             .get_entity();
-        g.insert_resource(PlayerEntity(player));
+        g.insert_resource(PlayerEntity::single_resource(), PlayerEntity(player));
 
-        g.insert_resource(PipeSpawnTimer(Timer::new(Duration::from_millis(1300))));
+        g.insert_resource(
+            PipeSpawnTimer::single_resource(),
+            PipeSpawnTimer(Timer::new(Duration::from_millis(1300))),
+        );
         spawn_pipe(g).unwrap();
     }
 }

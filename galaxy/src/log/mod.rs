@@ -67,7 +67,7 @@ impl LogFold {
         let logger = Logger::get_global_logger().read();
         logger
             .channel
-            .get_or(|| LogChannel::new())
+            .get_or(LogChannel::new)
             .evs
             .push(LogEvent::FoldStart(name));
         LogFold
@@ -79,7 +79,7 @@ impl Drop for LogFold {
         let logger = Logger::get_global_logger().read();
         logger
             .channel
-            .get_or(|| LogChannel::new())
+            .get_or(LogChannel::new)
             .evs
             .push(LogEvent::FoldEnd);
     }
@@ -101,7 +101,7 @@ impl Logger {
 
     pub fn insert_record(&self, record: LogRecord) {
         self.channel
-            .get_or(|| LogChannel::new())
+            .get_or(LogChannel::new)
             .evs
             .push(LogEvent::Record(record));
     }
@@ -137,6 +137,12 @@ impl Logger {
             GLOBAL_LOGGER = Some(RwLock::new(Logger::new()));
         });
         unsafe { GLOBAL_LOGGER.as_ref() }.unwrap()
+    }
+}
+
+impl Default for Logger {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

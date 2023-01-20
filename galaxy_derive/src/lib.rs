@@ -1,6 +1,5 @@
 use proc_macro::TokenStream;
 use quote::quote;
-use syn;
 
 #[proc_macro_derive(CheapComponent)]
 pub fn cheap_component_macro_derive(input: TokenStream) -> TokenStream {
@@ -84,6 +83,23 @@ pub fn resource_macro_derive(input: TokenStream) -> TokenStream {
     let (impl_generics, ty_generics, where_clause) = &ast.generics.split_for_impl();
     let gen = quote! {
         impl #impl_generics Resource for #name #ty_generics #where_clause {
+        }
+    };
+    gen.into()
+}
+
+#[proc_macro_derive(SingleResource)]
+pub fn single_resource_macro_derive(input: TokenStream) -> TokenStream {
+    let ast: syn::DeriveInput = syn::parse(input).unwrap();
+    let name = &ast.ident;
+    let (impl_generics, ty_generics, where_clause) = &ast.generics.split_for_impl();
+    let gen = quote! {
+        impl #impl_generics Resource for #name #ty_generics #where_clause {
+        }
+        impl #impl_generics #name #ty_generics {
+            pub fn single_resource() -> std::any::TypeId {
+                std::any::TypeId::of::<#name>()
+            }
         }
     };
     gen.into()

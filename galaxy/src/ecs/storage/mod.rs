@@ -51,11 +51,7 @@ impl StoragePlanet {
             self.storages
                 .get_mut(self.null_group.id())
                 .unwrap()
-                .insert_entity(
-                    &ComponentTypePlanet::new(),
-                    entity,
-                    StorageBlocInsert::new(),
-                )?;
+                .insert_entity(entity, StorageBlocInsert::new())?;
             Ok(())
         }
     }
@@ -112,19 +108,22 @@ impl StoragePlanet {
             gid
         } else {
             let new_gid = cg_planet.insert(group.clone());
-            query_planet.update_with_group(&cg_planet, new_gid)?;
-            self.update_with_group(cty_planet, &cg_planet, new_gid)?;
+            query_planet.update_with_group(cg_planet, new_gid)?;
+            self.update_with_group(cty_planet, cg_planet, new_gid)?;
             self.storages
                 .insert(new_gid.id(), StorageBloc::new(cty_planet, &group)?);
             new_gid
         };
 
-        let src_storage = unsafe {
-            &mut *(self.storages.get(old_gid.id()).unwrap() as *const StorageBloc
-                as *mut StorageBloc)
+        //  <Danger Zone>
+        let mut src_storage = unsafe {
+            std::ptr::read(self.storages.get(old_gid.id()).unwrap() as *const StorageBloc)
         };
         let dst_storage = self.storages.get_mut(new_gid.id()).unwrap();
-        StorageBloc::copy_entity(src_storage, dst_storage, entity, cty_planet, missings)?;
+        let res = StorageBloc::copy_entity(&mut src_storage, dst_storage, entity, missings);
+        std::mem::forget(src_storage);
+        res?;
+        //  </Danger Zone>
 
         *self.entities.get_mut(entity.id()).unwrap() = new_gid;
 
@@ -234,7 +233,7 @@ impl StoragePlanet {
     }
 
     pub fn get_entity_group(&self, entity: Entity) -> Option<ComponentGroupId> {
-        self.entities.get(entity.id()).map(|v| *v)
+        self.entities.get(entity.id()).copied()
     }
 
     pub fn get_entity_idx(&self, group: ComponentGroupId, entity: Entity) -> Option<usize> {
@@ -279,5 +278,11 @@ impl StorageModifyTransform {
 
     pub fn is_empty(&self) -> bool {
         self.inserts.is_empty() && self.removes.is_empty()
+    }
+}
+
+impl Default for StorageModifyTransform {
+    fn default() -> Self {
+        Self::new()
     }
 }

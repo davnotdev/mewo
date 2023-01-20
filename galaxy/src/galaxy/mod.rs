@@ -72,8 +72,8 @@ impl Galaxy {
         let mut qp = self.qp.write();
 
         let ev_modifies = unsafe { self.ev_modify.get_inner() };
-        for mut ev_modify in ev_modifies.iter_mut() {
-            evp.modify(&mut ev_modify).unwrap();
+        for ev_modify in ev_modifies.iter_mut() {
+            evp.modify(ev_modify).unwrap();
         }
 
         let st_transforms = unsafe { self.st_transforms.get_inner() };
@@ -92,10 +92,16 @@ impl Galaxy {
     }
 
     fn get_event_modify(&self) -> ThreadLocalGuard<EventModify> {
-        self.ev_modify.get_or(|| EventModify::new())
+        self.ev_modify.get_or(EventModify::new)
     }
 
     fn get_storage_transforms(&self) -> ThreadLocalGuard<Vec<StorageTransform>> {
-        self.st_transforms.get_or(|| Vec::new())
+        self.st_transforms.get_or(Vec::new)
+    }
+}
+
+impl Default for Galaxy {
+    fn default() -> Self {
+        Self::new()
     }
 }

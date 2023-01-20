@@ -8,24 +8,21 @@ pub(super) enum StorageRow {
 
 impl StorageRow {
     pub fn update(&mut self) {
-        match self {
-            StorageRow::CopyCat(write, read) => {
-                //  Assumes that the size of write is always >= read.
-                let write = write.lock();
-                unsafe {
-                    if write.len() < read.len() {
-                        read.unsafe_truncate(write.len());
-                    } else {
-                        read.resize_zeroed(write.len() - read.len());
-                    }
-                    std::ptr::copy_nonoverlapping(
-                        write.ptr(),
-                        read.ptr() as *mut u8,
-                        write.len() * write.size(),
-                    );
-                };
-            }
-            _ => {}
+        if let StorageRow::CopyCat(write, read) = self {
+            //  Assumes that the size of write is always >= read.
+            let write = write.lock();
+            unsafe {
+                if write.len() < read.len() {
+                    read.unsafe_truncate(write.len());
+                } else {
+                    read.resize_zeroed(write.len() - read.len());
+                }
+                std::ptr::copy_nonoverlapping(
+                    write.ptr(),
+                    read.ptr() as *mut u8,
+                    write.len() * write.size(),
+                );
+            };
         }
     }
 
@@ -58,17 +55,15 @@ impl StorageRow {
     }
 
     pub fn read_lock(&self) {
-        match self {
-            StorageRow::Normal(v) => std::mem::forget(v.read()),
-            _ => {}
-        }
+        if let StorageRow::Normal(v) = self {
+            std::mem::forget(v.read())
+        };
     }
 
     pub fn read_unlock(&self) {
-        match self {
-            StorageRow::Normal(v) => unsafe { v.force_unlock_read() },
-            _ => {}
-        }
+        if let StorageRow::Normal(v) = self {
+            unsafe { v.force_unlock_read() }
+        };
     }
 
     pub fn swap_remove(&mut self, idx: usize) {

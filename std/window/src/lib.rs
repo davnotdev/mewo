@@ -1,84 +1,84 @@
-use glfw::{Context, WindowEvent as WindowEventData, WindowMode};
 use mewo_galaxy::prelude::*;
 use mewo_galaxy_derive::*;
+use raw_window_handle::{
+    HasRawDisplayHandle, HasRawWindowHandle, RawDisplayHandle, RawWindowHandle,
+};
+use winit::{
+    event::{Event as WinitEvent, WindowEvent as WinitWindowEvent},
+    event_loop::EventLoop,
+    platform::run_return::EventLoopExtRunReturn,
+    window::{Window as WinitWindow, WindowBuilder},
+};
+
+//  TODO CHK: glfw-rs broke, so here's a hastily thrown together winit replacement.
+//  TODO EXT: Add options for window size, title, fullscreen, etc.
 
 pub mod prelude;
 
-#[derive(Resource)]
-pub struct WindowContext {
-    glfw: glfw::Glfw,
+#[derive(SingleResource)]
+pub struct Window {
+    event_loop: EventLoop<()>,
+    window: WinitWindow,
 }
 
-impl WindowContext {
+impl Window {
     pub fn new() -> Self {
-        WindowContext {
-            glfw: glfw::init(Some(glfw::Callback {
-                f: |_, s, _| {
-                    merr!("init GLFW {}", s);
-                },
-                data: (),
-            }))
-            .unwrap(),
-        }
+        let event_loop = EventLoop::new();
+        let window = WindowBuilder::new().build(&event_loop).unwrap();
+        window.set_maximized(true);
+        Window { event_loop, window }
+    }
+
+    pub fn get_raw_display(&self) -> RawDisplayHandle {
+        self.event_loop.raw_display_handle()
+    }
+
+    pub fn get_raw_window(&self) -> RawWindowHandle {
+        self.window.raw_window_handle()
+    }
+
+    pub fn get_width(&self) -> u32 {
+        self.window.inner_size().width
+    }
+
+    pub fn get_height(&self) -> u32 {
+        self.window.inner_size().height
     }
 }
 
-#[derive(UniqueComponent)]
-pub struct Window(
-    glfw::Window,
-    std::sync::mpsc::Receiver<(f64, WindowEventData)>,
-);
-
-impl Window {
-    pub fn new(
-        g: &Galaxy,
-        width: usize,
-        height: usize,
-        name: &str,
-        mode: Option<WindowMode>,
-    ) -> Self {
-        let window_ctx = g.get_resource::<WindowContext>().unwrap();
-        let (mut window, events) = window_ctx
-            .glfw
-            .create_window(
-                width as u32,
-                height as u32,
-                name,
-                mode.unwrap_or(WindowMode::Windowed),
-            )
-            .unwrap();
-        window.set_all_polling(true);
-        Window(window, events)
+impl Default for Window {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
 #[derive(Debug, Event)]
-pub struct WindowEvent(pub Entity, pub WindowEventData);
+pub struct WindowEvent<'a>(pub WinitWindowEvent<'a>);
 
 pub fn window_init(g: &Galaxy) {
-    g.insert_resource(WindowContext::new());
+    g.insert_resource(Window::single_resource(), Window::new());
 }
 
 pub fn window_update(g: &Galaxy) {
-    if let Some(mut window_ctx) = g.get_mut_resource::<WindowContext>() {
-        for (e, window) in g.query::<&mut Window>().eiter() {
-            if window.0.should_close() {
-                g.remove_entity(e);
+    let Some(mut window) = g.get_mut_resource::<Window, _>(Window::single_resource()) else {
+        return merr!("window_init not called");
+    };
+    window.event_loop.run_return(move |event, _, control_flow| {
+        control_flow.set_wait();
+        match event {
+            WinitEvent::WindowEvent {
+                event: WinitWindowEvent::CloseRequested { .. },
+                ..
+            } => {
+                panic!("window closed");
             }
-
-            //  TODO CHK: Not sure if this is safe.
-            //  window.0.glfw.poll_events();
-
-            window_ctx.glfw.poll_events();
-
-            for (_, event) in glfw::flush_messages(&window.1) {
-                g.insert_event(WindowEvent(e, event));
+            WinitEvent::WindowEvent { event, .. } => {
+                g.insert_event(WindowEvent(event.to_static().unwrap()));
             }
-
-            //  Might cause problems later?
-            window.0.swap_buffers();
-        }
-    } else {
-        merr!("window_init not called");
-    }
+            WinitEvent::MainEventsCleared => {
+                control_flow.set_exit();
+            }
+            _ => {}
+        };
+    });
 }

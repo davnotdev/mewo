@@ -4,11 +4,13 @@ use termbox_sys::*;
 impl TermContext {}
 
 pub fn term_init(g: &Galaxy) {
-    g.insert_resource(TermContext::new());
+    g.insert_resource(TermContext::single_resource(), TermContext::new());
 }
 
 pub fn term_input(g: &Galaxy) {
-    if let Some(_) = g.get_mut_resource::<TermContext>() {
+    if g.get_mut_resource::<TermContext, _>(TermContext::single_resource())
+        .is_some()
+    {
         let mut ev = std::mem::MaybeUninit::uninit();
         let ev = unsafe {
             //  60fps right?
@@ -18,14 +20,11 @@ pub fn term_input(g: &Galaxy) {
                 _ => ev.assume_init(),
             }
         };
-        match ev.etype {
-            TB_EVENT_KEY => {
-                g.insert_event(TermKeyEvent {
-                    key: ev.key,
-                    unicode: ev.ch,
-                });
-            }
-            _ => {}
+        if ev.etype == TB_EVENT_KEY {
+            g.insert_event(TermKeyEvent {
+                key: ev.key,
+                unicode: ev.ch,
+            });
         }
     }
 }
@@ -47,20 +46,10 @@ pub fn term_render(g: &Galaxy) {
 
     for pipe in g.query::<&Pipe>().iter() {
         //  Top
-        render_hollow(
-            pipe.0 .0 as i32,
-            pipe.0 .1 as i32,
-            pipe.0 .2 as i32,
-            pipe.0 .3 as i32,
-        );
+        render_hollow(pipe.0 .0 as i32, pipe.0 .1 as i32, pipe.0 .2, pipe.0 .3);
 
         //  Bottom
-        render_hollow(
-            pipe.1 .0 as i32,
-            pipe.1 .1 as i32,
-            pipe.1 .2 as i32,
-            pipe.1 .3 as i32,
-        );
+        render_hollow(pipe.1 .0 as i32, pipe.1 .1 as i32, pipe.1 .2, pipe.1 .3);
     }
 
     unsafe { tb_present() };

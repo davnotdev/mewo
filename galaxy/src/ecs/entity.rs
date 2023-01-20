@@ -49,7 +49,7 @@ impl EntityPlanet {
     pub fn remove(&mut self, entity: Entity) -> Result<()> {
         let err = ecs_err!(ErrorType::EntityPlanetRemove { entity }, self);
 
-        let (generation, exists) = self.entities.get_mut(entity.0).ok_or(err.clone())?;
+        let (generation, exists) = self.entities.get_mut(entity.0).ok_or_else(|| err.clone())?;
         if *generation != entity.1 {
             Err(err)?
         }

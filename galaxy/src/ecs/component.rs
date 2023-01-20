@@ -24,7 +24,7 @@ impl ComponentGroupId {
     }
 }
 
-#[derive(Debug)]
+#[derive(Default, Debug)]
 pub struct ComponentTypePlanet {
     components: HashMap<ComponentTypeId, TypeEntry>,
 }
@@ -95,7 +95,7 @@ impl ComponentGroup {
             return None;
         }
         if val > find {
-            return self.binary_search_recurse(
+            self.binary_search_recurse(
                 find,
                 left,
                 if let Ok(m) = (middle as isize - 1).try_into() {
@@ -103,9 +103,9 @@ impl ComponentGroup {
                 } else {
                     return None;
                 },
-            );
+            )
         } else {
-            return self.binary_search_recurse(find, middle + 1, right);
+            self.binary_search_recurse(find, middle + 1, right)
         }
     }
 }
@@ -172,7 +172,7 @@ impl ComponentGroupPlanet {
     }
 
     pub fn get_group_id(&self, group: &ComponentGroup) -> Option<ComponentGroupId> {
-        self.exists.get(group).map(|v| *v)
+        self.exists.get(group).copied()
     }
 
     pub fn get_group(&self, id: ComponentGroupId) -> Option<&ComponentGroup> {

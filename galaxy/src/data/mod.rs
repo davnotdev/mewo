@@ -25,10 +25,17 @@ pub fn hash_type<T: 'static>() -> u64 {
     hasher.finish()
 }
 
+pub fn hash_type_and_val<T: Hash + 'static>(val: T) -> u64 {
+    let mut hasher = DefaultHasher::new();
+    std::any::TypeId::of::<T>().hash(&mut hasher);
+    val.hash(&mut hasher);
+    hasher.finish()
+}
+
 pub fn data_drop<T>() -> ValueDrop {
     ValueDrop::new(|ptr| unsafe { drop(std::ptr::read(ptr as *const T as *mut T)) })
 }
 
 pub fn data_clone<T: Clone>() -> ValueDuplicate {
-    ValueDuplicate::Clone(|src, dst| unsafe { *(dst as *mut T) = (&*(src as *const T)).clone() })
+    ValueDuplicate::Clone(|src, dst| unsafe { *(dst as *mut T) = (*(src as *const T)).clone() })
 }

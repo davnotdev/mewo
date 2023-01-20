@@ -135,12 +135,7 @@ pub struct QueryIter<'gal, CA> {
 impl<'gal, CA> QueryIter<'gal, CA> {
     //  Call after next.
     pub fn get_current_entity(&self) -> Entity {
-        unsafe {
-            *self
-                .current_entities
-                .unwrap()
-                .offset((self.storage_idx - 1) as isize)
-        }
+        unsafe { *self.current_entities.unwrap().add(self.storage_idx - 1) }
     }
 }
 
@@ -160,12 +155,12 @@ where
 
         let (gid, ord, locks) = &access.groups[self.group_idx];
 
-        if let None = self.current_storage {
+        if self.current_storage.is_none() {
             self.current_storage_len = Some(self.galaxy.sp.read().get_len(*gid));
             self.current_storage = Some(QueryStorageGuard::new(
                 self.qid,
                 self.group_idx,
-                &self.galaxy,
+                self.galaxy,
             ));
             let sp = self.galaxy.sp.read();
             self.current_datas = Some(
@@ -191,7 +186,7 @@ where
             self.current_storage_len = None;
             return self.next();
         }
-        let ret = CA::datas(&self.current_datas.as_ref().unwrap(), self.storage_idx);
+        let ret = CA::datas(self.current_datas.as_ref().unwrap(), self.storage_idx);
         self.storage_idx += 1;
         Some(ret)
     }

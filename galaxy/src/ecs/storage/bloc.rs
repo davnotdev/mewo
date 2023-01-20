@@ -45,37 +45,35 @@ impl StorageBloc {
     }
 
     pub fn get_write_lock(&self, id: ComponentTypeId) -> Option<()> {
-        Some(
-            self.datas
-                .get(self.type_column(id)?)
-                .unwrap()
-                .1
-                .write_lock(),
-        )
+        self.datas
+            .get(self.type_column(id)?)
+            .unwrap()
+            .1
+            .write_lock();
+        Some(())
     }
 
     pub fn get_write_unlock(&self, id: ComponentTypeId) -> Option<()> {
-        Some(
-            self.datas
-                .get(self.type_column(id)?)
-                .unwrap()
-                .1
-                .write_unlock(),
-        )
+        self.datas
+            .get(self.type_column(id)?)
+            .unwrap()
+            .1
+            .write_unlock();
+        Some(())
     }
 
     pub fn get_read_lock(&self, id: ComponentTypeId) -> Option<()> {
-        Some(self.datas.get(self.type_column(id)?).unwrap().1.read_lock())
+        self.datas.get(self.type_column(id)?).unwrap().1.read_lock();
+        Some(())
     }
 
     pub fn get_read_unlock(&self, id: ComponentTypeId) -> Option<()> {
-        Some(
-            self.datas
-                .get(self.type_column(id)?)
-                .unwrap()
-                .1
-                .read_unlock(),
-        )
+        self.datas
+            .get(self.type_column(id)?)
+            .unwrap()
+            .1
+            .read_unlock();
+        Some(())
     }
 
     pub fn get_write(&self, id: ComponentTypeId) -> Option<*const u8> {
@@ -102,24 +100,15 @@ impl StorageBloc {
         self.entities.as_ptr()
     }
 
-    pub fn insert_entity(
-        &mut self,
-        planet: &ComponentTypePlanet,
-        entity: Entity,
-        ins: StorageBlocInsert,
-    ) -> Result<()> {
+    pub fn insert_entity(&mut self, entity: Entity, ins: StorageBlocInsert) -> Result<()> {
         assert!(ins.components.len() == self.datas.len());
         //  TODO FIX: Should never panic. It's here right now just in case.
         assert!(self.entity_row(entity).is_none());
         self.entities.push(entity);
         for (id, val) in ins.components.into_iter() {
-            let column = self.type_column(id).ok_or(ecs_err!(
-                ErrorType::StorageBlocInsertComponent {
-                    id: id,
-                    entity: entity
-                },
-                self
-            ))?;
+            let column = self.type_column(id).ok_or_else(|| {
+                ecs_err!(ErrorType::StorageBlocInsertComponent { id, entity }, self)
+            })?;
             self.datas.get_mut(column).unwrap().1.resize(1, val);
         }
         Ok(())
@@ -152,7 +141,6 @@ impl StorageBloc {
         src: &mut Self,
         dst: &mut Self,
         entity: Entity,
-        planet: &ComponentTypePlanet,
         mut missings: StorageBlocInsert,
     ) -> Result<()> {
         let src_row = src.entity_row(entity).ok_or(ecs_err!(
@@ -162,7 +150,7 @@ impl StorageBloc {
         for (id, data) in src.datas.iter_mut() {
             missings.insert(*id, data.get_mut(src_row).unwrap());
         }
-        dst.insert_entity(planet, entity, missings)?;
+        dst.insert_entity(entity, missings)?;
         src.take_remove_entity(entity)?;
 
         Ok(())

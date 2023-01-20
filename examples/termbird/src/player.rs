@@ -17,7 +17,9 @@ pub fn game_player_jump(g: &Galaxy) {
 }
 
 pub fn game_player_border(g: &Galaxy) {
-    let bounds = g.get_resource::<GameBounds>().unwrap();
+    let bounds = g
+        .get_resource::<GameBounds, _>(GameBounds::single_resource())
+        .unwrap();
     for (e, player) in g.query::<&Player>().eiter() {
         if player.1 >= bounds.1 || player.1 <= 0f32 {
             g.remove_entity(e);

@@ -1,7 +1,7 @@
 use super::*;
 use std::time::Instant;
 
-#[derive(Resource)]
+#[derive(SingleResource)]
 pub struct StderrLog {
     load_time: Instant,
     sub: LogSubscription,
@@ -50,15 +50,18 @@ impl Drop for StderrLog {
 
 pub fn stderr_log_init(g: &Galaxy) {
     let sub = Logger::get_global_logger().write().subscribe();
-    g.insert_resource(StderrLog {
-        sub,
-        tabc: 0,
-        load_time: Instant::now(),
-    });
+    g.insert_resource(
+        StderrLog::single_resource(),
+        StderrLog {
+            sub,
+            tabc: 0,
+            load_time: Instant::now(),
+        },
+    );
 }
 
 pub fn stderr_log_update(g: &Galaxy) {
-    if let Some(mut log) = g.get_mut_resource::<StderrLog>() {
+    if let Some(mut log) = g.get_mut_resource::<StderrLog, _>(StderrLog::single_resource()) {
         log.log();
     } else {
         panic!()

@@ -1,5 +1,7 @@
 use super::drop::ValueDrop;
 
+//  TODO FIX: Fix Valgrand memory errors.
+
 #[derive(Debug)]
 pub struct TVal {
     size: usize,
@@ -22,7 +24,7 @@ impl TVal {
                     //  std::ptr::copy_nonoverlapping::<u8>(val, v.as_mut_ptr(), size);
 
                     for s in 0..size {
-                        v.push(*val.offset(s as isize));
+                        v.push(*val.add(s));
                     }
                 }
                 v

@@ -32,7 +32,7 @@ impl DVec {
         self.data.reserve(additional * self.data_size);
         for _ in 0..additional {
             for b in 0..self.data_size {
-                let offsetb = unsafe { *inplace.offset(b as isize) };
+                let offsetb = unsafe { *inplace.add(b) };
                 self.data.push(offsetb);
             }
         }
@@ -59,7 +59,7 @@ impl DVec {
         if self.data_size != 0 {
             self.drop.call(val);
             for b in (0..self.data_size).rev() {
-                let &rm = self.data.get(self.data.len() - 1).unwrap();
+                let &rm = self.data.last().unwrap();
                 *self.data.get_mut(idx * self.data_size + b).unwrap() = rm;
                 self.data.pop();
             }
@@ -71,7 +71,7 @@ impl DVec {
     pub fn take_swap_remove(&mut self, idx: usize) -> Option<()> {
         if self.data_size != 0 {
             for b in (0..self.data_size).rev() {
-                let &rm = self.data.get(self.data.len() - 1).unwrap();
+                let &rm = self.data.last().unwrap();
                 *self.data.get_mut(idx * self.data_size + b).unwrap() = rm;
                 self.data.pop();
             }
@@ -146,7 +146,7 @@ fn test_dvec() {
     dvec.swap_remove(1);
     let expected: [u128; 3] = [0, 3, 2];
     for (i, e) in expected.iter().enumerate() {
-        let val = dvec.get(i as usize).unwrap();
+        let val = dvec.get(i).unwrap();
         unsafe {
             assert_eq!(*e, *(val as *const u128),);
         }

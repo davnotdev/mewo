@@ -12,6 +12,8 @@ pub struct ThreadLocalGuard<'a, T> {
 }
 
 impl<'a, T> ThreadLocalGuard<'a, T> {
+    //  The whole point of this fn is to get a mut from ref.
+    #[allow(clippy::mut_from_ref)]
     fn get(&self) -> &mut T {
         let hashes = self.thread_local.hashes.read();
         let idx = hashes.get(&self.id).unwrap();
@@ -80,10 +82,11 @@ impl<T> ThreadLocal<T> {
         if let Some(val) = self.get() {
             val
         } else {
-            let datas = unsafe { self.datas.write().get().as_mut().unwrap() };
-            self.hashes.write().insert(id, datas.len());
-            datas.push((f)());
-            drop(datas);
+            {
+                let datas = unsafe { self.datas.write().get().as_mut().unwrap() };
+                self.hashes.write().insert(id, datas.len());
+                datas.push((f)());
+            }
             self.get().unwrap()
         }
     }

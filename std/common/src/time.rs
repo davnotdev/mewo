@@ -1,7 +1,7 @@
 use super::*;
 use std::time::{Duration, Instant};
 
-#[derive(Resource)]
+#[derive(SingleResource)]
 pub struct GlobalTime {
     last_instant: Instant,
 }
@@ -18,6 +18,12 @@ impl GlobalTime {
         let dt = now - self.last_instant;
         self.last_instant = now;
         dt
+    }
+}
+
+impl Default for GlobalTime {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -51,11 +57,11 @@ impl Timer {
 }
 
 pub fn time_init(g: &Galaxy) {
-    g.insert_resource(GlobalTime::new());
+    g.insert_resource(GlobalTime::single_resource(), GlobalTime::new());
 }
 
 pub fn time_global_update(g: &Galaxy) {
-    if let Some(mut time) = g.get_mut_resource::<GlobalTime>() {
+    if let Some(mut time) = g.get_mut_resource::<GlobalTime, _>(GlobalTime::single_resource()) {
         time.last_instant = Instant::now();
     } else {
         //  TODO FIX: Switch to some logging system.

@@ -125,7 +125,7 @@ impl QueryPlanet {
     }
 
     pub fn get_query_id(&self, access: &QueryAccess) -> Option<QueryId> {
-        self.accesses.get(access).map(|v| *v)
+        self.accesses.get(access).copied()
     }
 
     pub fn get_access(&self, id: QueryId) -> Result<&StorageAccess> {
@@ -189,8 +189,8 @@ fn group_from_access(access: &HashMap<ComponentTypeId, QueryLockType>) -> Compon
 //  3. With<C>      6. Without<C>
 fn access_filter(
     group: &ComponentGroup,
-    accesses: &Vec<(ComponentTypeId, QueryAccessType)>,
-    filters: &Vec<(ComponentTypeId, QueryFilterType)>,
+    accesses: &[(ComponentTypeId, QueryAccessType)],
+    filters: &[(ComponentTypeId, QueryFilterType)],
 ) -> Option<HashMap<ComponentTypeId, QueryLockType>> {
     let mut lock_map = HashMap::new();
     for &(cty, ctf) in filters.iter() {
@@ -223,7 +223,7 @@ fn access_filter(
         lock_map.insert(cty, ctq.into_lock());
     }
 
-    if lock_map.len() == 0 {
+    if lock_map.is_empty() {
         None?
     }
     Some(lock_map)
