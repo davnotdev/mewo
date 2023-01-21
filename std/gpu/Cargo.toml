@@ -13,3 +13,6 @@ gpu-allocator = "0.21.0"
 ash = "0.37.0"
 spirv-reflect = "0.2.3"
 
+[target.'cfg(any(target_os = "macos", target_os = "ios"))'.dependencies]
+raw-window-metal = "0.3"
+

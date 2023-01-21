@@ -36,9 +36,9 @@ impl VkSurface {
         &[
             #[cfg(target_os = "macos")]
             "VK_EXT_metal_surface",
-            #[cfg(target_family = "unix")]
+            #[cfg(all(target_family = "unix", not(target_os = "macos")))]
             "VK_KHR_xlib_surface",
-            #[cfg(target_family = "unix")]
+            #[cfg(all(target_family = "unix", not(target_os = "macos")))]
             "VK_KHR_wayland_surface",
             #[cfg(target_family = "windows")]
             "VK_KHR_win32_surface",
@@ -108,23 +108,32 @@ fn new_unix_wayland_surface(
     unsafe { native_surface.create_wayland_surface(&native_surface_create, None) }.ok()
 }
 
+#[allow(unused_variables)]
 fn new_unix_macos_surface(
     entry: &Entry,
     instance: &ash::Instance,
     display: &RawDisplayHandle,
     window: &RawWindowHandle,
 ) -> Option<vk::SurfaceKHR> {
-    //  TODO FIX: Create macos vulkan surface.
-    //  TODO EXT: Support both vulkan surface extensions for macos similar to glfw?
-    let RawDisplayHandle::AppKit(native_display) = display else {
-        None?
-    };
-    let RawWindowHandle::AppKit(native_window) = window else {
-        None?
-    };
-    let native_surface_create = vk::MetalSurfaceCreateInfoEXT::builder()
-        .layer(todo!("window->ns.layer ???"))
-        .build();
-    let native_surface = ash::extensions::ext::MetalSurface::new(entry, instance);
-    unsafe { native_surface.create_metal_surface(&native_surface_create, None) }.ok()
+    #[cfg(target_os = "macos")]
+    {
+        use raw_window_metal::{appkit, Layer};
+
+        let RawDisplayHandle::AppKit(_native_display) = display else {
+            None?
+        };
+        let RawWindowHandle::AppKit(native_window) = window else {
+            None?
+        };
+        let layer = match unsafe { appkit::metal_layer_from_handle(native_window.clone()) } {
+            Layer::Existing(layer) | Layer::Allocated(layer) => layer.cast(),
+            Layer::None => None?,
+        };
+
+        let native_surface_create =
+            vk::MetalSurfaceCreateInfoEXT::builder().layer(unsafe { &*layer });
+        let native_surface = extensions::ext::MetalSurface::new(entry, instance);
+        return unsafe { native_surface.create_metal_surface(&native_surface_create, None) }.ok();
+    }
+    unreachable!()
 }
