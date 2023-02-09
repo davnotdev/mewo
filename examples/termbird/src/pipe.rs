@@ -27,7 +27,7 @@ pub fn game_pipe_spawn_loop(g: &Galaxy) {
         .get_mut_resource::<GlobalTime, _>(GlobalTime::single_resource())
         .unwrap();
     let mut timer = g
-        .get_mut_resource::<PipeSpawnTimer, _>(GlobalTime::single_resource())
+        .get_mut_resource::<PipeSpawnTimer, _>(PipeSpawnTimer::single_resource())
         .unwrap();
 
     if timer.0.tick(time.delta_time()).passed() {
