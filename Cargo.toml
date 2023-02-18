@@ -6,6 +6,7 @@ members = [
     # "std/asset",
     "std/window",
     "std/gpu",
+    "std/tasker",
     "examples/termbird/",
     "examples/winbox/",
     "examples/gpu_test/"

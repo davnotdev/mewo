@@ -44,14 +44,13 @@ pub trait Event {
 impl Galaxy {
     pub fn insert_event<E: Event + 'static>(&self, e: E) -> &Self {
         self.event_maybe_insert::<E>();
-        self.get_event_modify().insert(
-            E::mewo_event_id(),
+        self.get_event_modify().insert(E::mewo_event_id(), unsafe {
             TVal::new(
                 E::mewo_event_size(),
                 &e as *const E as *const u8,
                 E::mewo_event_drop(),
-            ),
-        );
+            )
+        });
         std::mem::forget(e);
         self
     }

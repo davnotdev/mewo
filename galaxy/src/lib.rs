@@ -1,4 +1,4 @@
-mod data;
+pub mod data;
 mod ecs;
 mod galaxy;
 mod log;

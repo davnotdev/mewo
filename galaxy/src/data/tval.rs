@@ -10,10 +10,10 @@ pub struct TVal {
 }
 
 impl TVal {
-    pub fn new(size: usize, val: *const u8, drop: ValueDrop) -> Self {
+    pub unsafe fn new(size: usize, val: *const u8, drop: ValueDrop) -> Self {
         TVal {
             size,
-            val: unsafe {
+            val: {
                 let mut v = Vec::new();
                 if size == 0 {
                     v.resize(1, 0);
@@ -56,7 +56,7 @@ impl Drop for TVal {
 fn test_tval() {
     let size = std::mem::size_of::<u128>();
     let val = 89238929u128;
-    let tval = TVal::new(size, &val as *const u128 as *const u8, ValueDrop::empty());
+    let tval = unsafe { TVal::new(size, &val as *const u128 as *const u8, ValueDrop::empty()) };
     unsafe { assert_eq!(val, *(tval.get() as *const u128),) };
 }
 
@@ -65,10 +65,12 @@ fn test_unsized_tval() {
     #[derive(Debug, PartialEq)]
     struct MyStruct;
     let size = std::mem::size_of::<MyStruct>();
-    let tval = TVal::new(
-        size,
-        &MyStruct as *const MyStruct as *const u8,
-        ValueDrop::empty(),
-    );
+    let tval = unsafe {
+        TVal::new(
+            size,
+            &MyStruct as *const MyStruct as *const u8,
+            ValueDrop::empty(),
+        )
+    };
     unsafe { assert_eq!(MyStruct, *(tval.get() as *const MyStruct)) };
 }

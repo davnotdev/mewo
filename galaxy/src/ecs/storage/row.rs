@@ -89,8 +89,8 @@ impl StorageRow {
 
     pub fn resize(&mut self, idx: usize, inplace: *const u8) {
         match self {
-            StorageRow::Normal(v) => v.write().resize(idx, inplace),
-            StorageRow::CopyCat(v, _) => v.lock().resize(idx, inplace),
+            StorageRow::Normal(v) => unsafe { v.write().resize(idx, inplace) },
+            StorageRow::CopyCat(v, _) => unsafe { v.lock().resize(idx, inplace) },
         }
     }
 

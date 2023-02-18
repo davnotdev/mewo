@@ -27,14 +27,13 @@ impl<'gal, T> EntityGetter<'gal, T> {
         self.component_maybe_insert::<C>();
         match self.trans.as_mut().unwrap() {
             StorageTransform::Insert(_, modify) | StorageTransform::Modify(_, modify) => {
-                modify.insert(
-                    C::mewo_component_id(),
+                modify.insert(C::mewo_component_id(), unsafe {
                     TVal::new(
                         C::mewo_component_size(),
                         &c as *const C as *const u8,
                         C::mewo_component_drop(),
-                    ),
-                );
+                    )
+                });
             }
             _ => unreachable!(),
         }

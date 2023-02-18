@@ -54,11 +54,13 @@ impl EventPlanet {
         let err = ecs_err!(ErrorType::EventPlanetModify, (&self, &events));
         for (id, val) in events.into_iter() {
             let ptr = val.get();
-            self.events
-                .get_mut(&id)
-                .ok_or_else(|| err.clone())?
-                .1
-                .resize(1, ptr);
+            unsafe {
+                self.events
+                    .get_mut(&id)
+                    .ok_or_else(|| err.clone())?
+                    .1
+                    .resize(1, ptr);
+            }
             val.take();
         }
         Ok(())

@@ -9,18 +9,23 @@ but I consider those low priority.
 
 ## Development Status
 
-Some crates are either
+Crates are either
+Usable (K),
 borked (B),
 incomplete (I),
 untested (T),
 or excluded due to broken dependencies (D).
 
-| Crate                | Functionality | Clippy |
+> By "Usable", I mean that the crate has enough functionality to have a purpose
+/ use.
+
+| Create               | Functionality | Clippy |
 | -------------------- | ------------- | ------ |
 | `mewo_galaxy`        | K             | K      |
 | `mewo_galaxy_derive` | K             | K      |
 | `mewo_asset`         | B             | B      |
 | `mewo_common`        | K             | K      |
+| `mewo_tasker`        | K             | K      |
 | `mewo_window`        | K             | K      |
 | `mewo_gpu`           | I             | I      |
 | `gpu_test`           | I             | K      |

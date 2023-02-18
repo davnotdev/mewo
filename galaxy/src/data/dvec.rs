@@ -28,11 +28,11 @@ impl DVec {
         }
     }
 
-    pub fn resize(&mut self, additional: usize, inplace: *const u8) {
+    pub unsafe fn resize(&mut self, additional: usize, inplace: *const u8) {
         self.data.reserve(additional * self.data_size);
         for _ in 0..additional {
             for b in 0..self.data_size {
-                let offsetb = unsafe { *inplace.add(b) };
+                let offsetb = *inplace.add(b);
                 self.data.push(offsetb);
             }
         }
@@ -125,7 +125,7 @@ fn test_dvec() {
     let size = std::mem::size_of::<u128>();
     let mut dvec = DVec::new(size, ValueDrop::empty());
     let one = 1u128;
-    dvec.resize(4, &one as *const u128 as *const u8);
+    unsafe { dvec.resize(4, &one as *const u128 as *const u8) };
     assert_eq!(dvec.len(), 4);
     assert_eq!(dvec.data_size, size);
     for i in 0..4u128 {
@@ -162,7 +162,7 @@ fn test_unsized_dvec() {
     let size = std::mem::size_of::<MyStruct>();
     let mut dvec = DVec::new(size, ValueDrop::empty());
     let m = MyStruct;
-    dvec.resize(2, &m as *const MyStruct as *const u8);
+    unsafe { dvec.resize(2, &m as *const MyStruct as *const u8) };
     assert_eq!(dvec.len(), 2);
     assert_eq!(dvec.data_size, size);
     dvec.swap_remove(0);

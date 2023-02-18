@@ -2,7 +2,7 @@ use crate::prelude::*;
 
 #[test]
 fn test_log() {
-    let sub = { unsafe { Logger::get_global_logger() }.write().subscribe() };
+    let sub = { Logger::get_global_logger().write().subscribe() };
     {
         let _fold = mfold!("f");
         minfo!("Got Some Value! {}", 10);
@@ -33,7 +33,7 @@ fn test_log() {
     ];
     let mut res = vec![];
 
-    let mut logger = unsafe { Logger::get_global_logger() }.write();
+    let mut logger = Logger::get_global_logger().write();
     while let Some(record) = logger.take(sub) {
         res.push(match record {
             LogEvent::FoldStart(_) => LogRes::FoldStart,

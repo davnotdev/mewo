@@ -95,11 +95,13 @@ impl Galaxy {
         let rcp = self.rcp.write();
         {
             let val = rcp.get_write_lock(id).unwrap();
-            *val = Some(TVal::new(
-                R::mewo_resource_size(),
-                &r as *const R as *const u8,
-                R::mewo_resource_drop(),
-            ));
+            *val = Some(unsafe {
+                TVal::new(
+                    R::mewo_resource_size(),
+                    &r as *const R as *const u8,
+                    R::mewo_resource_drop(),
+                )
+            });
             std::mem::forget(r);
             rcp.get_write_unlock(id).unwrap();
         }
