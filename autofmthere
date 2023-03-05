@@ -1,4 +1,0 @@
-#!/bin/sh
-
-tree -if | grep ".rs" | grep -v "target/" | xargs rustfmt
-
