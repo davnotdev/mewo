@@ -27,12 +27,10 @@ or excluded due to broken dependencies (D).
 | `mewo_common`        | K             | K      |
 | `mewo_tasker`        | K             | K      |
 | `mewo_window`        | K             | K      |
-| `mewo_gpu`           | I             | I      |
-| `gpu_test`           | I             | K      |
 | `termbird`           | K             | K      |
 | `winbox`             | K             | K      |
 
 ### Additional Notes
 
-- `mewo_gpu` mostly incomplete and buggy. See the hello triangle in examples.
+- `mewo_gpu` has been moved [here](https://github.com/davnotdev/mepeyew).
 - `mewo_asset` has not been tested and broke with the addition of plural resources.
