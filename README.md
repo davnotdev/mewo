@@ -3,9 +3,8 @@
 Yet Another Rust ECS Game Engine.
 Not ready for anything yet, but hopefully, it'll be usable soon!
 
-There are more todos sprinkled everywhere
-`grep -ri --exclude=README.md --exclude-dir=target TODO .`,
-but I consider those low priority.
+> Interested in how it works?
+> [Read about it here](https://davnotdev.github.io/blog/coolprojects/mewo_explained_0/).
 
 ## Development Status
 
