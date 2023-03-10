@@ -21,7 +21,7 @@ mod state;
 mod test;
 
 pub use access::{
-    ComponentAccessNonOptional, ComponentAccessOptional, ComponentAccessesNonOptional,
+    ComponentAccessNonOptional, ComponentAccessesOptional, ComponentAccessesNonOptional,
     ComponentAccessesNormal, ComponentAccessesOptional,
 };
 pub use component::{CheapComponent, Component, GenericComponent, UniqueComponent};

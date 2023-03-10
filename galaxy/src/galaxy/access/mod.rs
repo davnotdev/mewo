@@ -14,7 +14,7 @@ mod nonoptional;
 
 pub use nonoptional::{ComponentAccessNonOptional, ComponentAccessesNonOptional};
 pub use normal::ComponentAccessesNormal;
-pub use optional::{ComponentAccessOptional, ComponentAccessesOptional};
+pub use optional::{ComponentAccessesOptional, ComponentAccessesOptional};
 
 fn component_maybe_insert<C: GenericComponent + 'static>(ctyp: &RwLock<ComponentTypePlanet>) {
     let id = C::mewo_component_id();
