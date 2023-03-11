@@ -20,10 +20,7 @@ mod state;
 #[cfg(test)]
 mod test;
 
-pub use access::{
-    ComponentAccessNonOptional, ComponentAccessesOptional, ComponentAccessesNonOptional,
-    ComponentAccessesNormal, ComponentAccessesOptional,
-};
+pub use access::{ComponentAccessOptional, ComponentAccessesNormal, ComponentAccessesOptional};
 pub use component::{CheapComponent, Component, GenericComponent, UniqueComponent};
 pub use event::Event;
 pub use resource::{Resource, ResourceReadGuard, ResourceWriteGuard};

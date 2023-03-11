@@ -1,6 +1,6 @@
 use super::{
-    ComponentAccessesNormal, ComponentAccessesOptional, Entity, Galaxy, QueryAccess,
-    QueryFilterType, QueryId, QueryLockType,
+    ComponentAccessOptional, ComponentAccessesNormal, ComponentAccessesOptional, Entity, Galaxy,
+    QueryAccess, QueryFilterType, QueryId, QueryLockType,
 };
 use std::marker::PhantomData;
 
@@ -14,7 +14,7 @@ pub struct QueryInfo<'gal, CA> {
 
 impl<'gal, CA> QueryInfo<'gal, CA>
 where
-    CA: ComponentAccessesOptional,
+    CA: ComponentAccessOptional,
 {
     pub fn with<CF: ComponentAccessesNormal>(mut self) -> Self {
         CF::component_maybe_insert(&self.galaxy.ctyp);
@@ -210,7 +210,7 @@ where
 }
 
 impl Galaxy {
-    pub fn query<CA: ComponentAccessesOptional>(&self) -> QueryInfo<CA> {
+    pub fn query<CA: ComponentAccessOptional>(&self) -> QueryInfo<CA> {
         CA::component_maybe_insert(&self.ctyp);
         QueryInfo {
             incomplete: QueryAccess {

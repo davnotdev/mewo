@@ -1,6 +1,6 @@
 use super::{
-    ComponentAccessesNonOptional, ComponentGroupId, Entity, Galaxy, GenericComponent,
-    QueryAccessType, StorageModifyTransform, StorageTransform,
+    ComponentAccessesOptional, ComponentGroupId, Entity, Galaxy, GenericComponent, QueryAccessType,
+    StorageModifyTransform, StorageTransform,
 };
 use crate::data::TVal;
 use std::marker::PhantomData;
@@ -66,7 +66,7 @@ impl<'gal, T> EntityGetter<'gal, T>
 where
     T: EntityModifyOnly,
 {
-    pub fn get<CA: ComponentAccessesNonOptional>(
+    pub fn get<CA: ComponentAccessesOptional>(
         &mut self,
     ) -> Option<EntityComponentGetter<'gal, CA>> {
         Some(EntityComponentGetter::new(
@@ -87,17 +87,17 @@ impl<'gal, T> Drop for EntityGetter<'gal, T> {
     }
 }
 
-pub struct EntityComponentGetter<'gal, CA: ComponentAccessesNonOptional> {
+pub struct EntityComponentGetter<'gal, CA: ComponentAccessesOptional> {
     galaxy: &'gal Galaxy,
     group_id: ComponentGroupId,
     entity_idx: usize,
-    datas: Vec<*const u8>,
+    datas: Vec<Option<*const u8>>,
     phantom: PhantomData<CA>,
 }
 
 impl<'gal, CA> EntityComponentGetter<'gal, CA>
 where
-    CA: ComponentAccessesNonOptional,
+    CA: ComponentAccessesOptional,
 {
     pub fn new(galaxy: &'gal Galaxy, entity: Entity) -> Self {
         CA::component_maybe_insert(&galaxy.ctyp);
@@ -111,16 +111,14 @@ where
             for (idx, &(qcty, qlock)) in query.iter().enumerate() {
                 if qcty == cty {
                     match qlock {
-                        //  Some(whatever.unwrap()) is intentional.
-                        QueryAccessType::Read => {
+                        QueryAccessType::Read | QueryAccessType::OptionRead => {
                             sp.get_read_lock(gid, cty).unwrap();
-                            *datas.get_mut(idx).unwrap() = Some(sp.get_read(gid, cty).unwrap());
+                            *datas.get_mut(idx).unwrap() = sp.get_read(gid, cty);
                         }
-                        QueryAccessType::Write => {
+                        QueryAccessType::Write | QueryAccessType::OptionWrite => {
                             sp.get_write_lock(gid, cty).unwrap();
-                            *datas.get_mut(idx).unwrap() = Some(sp.get_read(gid, cty).unwrap());
+                            *datas.get_mut(idx).unwrap() = sp.get_read(gid, cty);
                         }
-                        _ => unreachable!(),
                     };
                 }
             }
@@ -129,10 +127,7 @@ where
             galaxy,
             entity_idx: sp.get_entity_idx(gid, entity).unwrap(),
             group_id: gid,
-            datas: datas
-                .into_iter()
-                .collect::<Option<Vec<*const u8>>>()
-                .unwrap(),
+            datas: datas.into_iter().collect(),
             phantom: PhantomData,
         }
     }
@@ -144,7 +139,7 @@ where
 
 impl<'gal, CA> Drop for EntityComponentGetter<'gal, CA>
 where
-    CA: ComponentAccessesNonOptional,
+    CA: ComponentAccessesOptional,
 {
     fn drop(&mut self) {
         let sp = self.galaxy.sp.read();
@@ -158,9 +153,12 @@ where
                 if qcty == cty {
                     match qlock {
                         //  Some(whatever.unwrap()) is intentional.
-                        QueryAccessType::Read => sp.get_read_unlock(self.group_id, cty).unwrap(),
-                        QueryAccessType::Write => sp.get_write_unlock(self.group_id, cty).unwrap(),
-                        _ => unreachable!(),
+                        QueryAccessType::Read | QueryAccessType::OptionRead => {
+                            sp.get_read_unlock(self.group_id, cty).unwrap()
+                        }
+                        QueryAccessType::Write | QueryAccessType::OptionWrite => {
+                            sp.get_write_unlock(self.group_id, cty).unwrap()
+                        }
                     };
                 }
             }

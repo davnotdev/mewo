@@ -1,6 +1,6 @@
 use super::*;
 
-pub trait ComponentAccessesOptional {
+pub trait ComponentAccessOptional {
     fn info() -> (ComponentTypeId, QueryAccessType);
     fn data(data: Option<*const u8>, idx: usize) -> Self;
     fn component_maybe_insert(ctyp: &RwLock<ComponentTypePlanet>);
@@ -12,7 +12,7 @@ pub trait ComponentAccessesOptional {
     fn component_maybe_insert(ctyp: &RwLock<ComponentTypePlanet>);
 }
 
-impl<C> ComponentAccessesOptional for &C
+impl<C> ComponentAccessOptional for &C
 where
     C: GenericComponent + 'static,
 {
@@ -29,7 +29,7 @@ where
     }
 }
 
-impl<C> ComponentAccessesOptional for &mut C
+impl<C> ComponentAccessOptional for &mut C
 where
     C: GenericComponent + 'static,
 {
@@ -51,7 +51,7 @@ where
     }
 }
 
-impl<C> ComponentAccessesOptional for Option<&C>
+impl<C> ComponentAccessOptional for Option<&C>
 where
     C: GenericComponent + 'static,
 {
@@ -68,7 +68,7 @@ where
     }
 }
 
-impl<C> ComponentAccessesOptional for Option<&mut C>
+impl<C> ComponentAccessOptional for Option<&mut C>
 where
     C: GenericComponent + 'static,
 {
@@ -91,7 +91,7 @@ where
 
 impl<C0> ComponentAccessesOptional for C0
 where
-    C0: ComponentAccessesOptional,
+    C0: ComponentAccessOptional,
 {
     fn infos() -> Vec<(ComponentTypeId, QueryAccessType)> {
         vec![C0::info()]
@@ -108,8 +108,8 @@ where
 
 impl<C0, C1> ComponentAccessesOptional for (C0, C1)
 where
-    C0: ComponentAccessesOptional,
-    C1: ComponentAccessesOptional,
+    C0: ComponentAccessOptional,
+    C1: ComponentAccessOptional,
 {
     fn infos() -> Vec<(ComponentTypeId, QueryAccessType)> {
         vec![C0::info(), C1::info()]
@@ -127,9 +127,9 @@ where
 
 impl<C0, C1, C2> ComponentAccessesOptional for (C0, C1, C2)
 where
-    C0: ComponentAccessesOptional,
-    C1: ComponentAccessesOptional,
-    C2: ComponentAccessesOptional,
+    C0: ComponentAccessOptional,
+    C1: ComponentAccessOptional,
+    C2: ComponentAccessOptional,
 {
     fn infos() -> Vec<(ComponentTypeId, QueryAccessType)> {
         vec![C0::info(), C1::info(), C2::info()]
