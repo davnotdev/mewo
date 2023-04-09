@@ -3,8 +3,9 @@ use super::{
     ecs::{
         ComponentGroupId, ComponentGroupPlanet, ComponentTypeId, ComponentTypePlanet, Entity,
         EntityPlanet, EventId, EventModify, EventPlanet, QueryAccess, QueryAccessType,
-        QueryFilterType, QueryId, QueryLockType, QueryPlanet, ResourceId, ResourcePlanet, StateId,
-        StatePlanet, StorageModifyTransform, StoragePlanet, StorageTransform,
+        QueryFilterType, QueryId, QueryLockType, QueryPlanet, ResourceId, ResourcePlanet,
+        ResourceTypeId, StateId, StatePlanet, StorageModifyTransform, StoragePlanet,
+        StorageTransform,
     },
 };
 use parking_lot::RwLock;

@@ -16,6 +16,6 @@ pub use query::{
     QueryAccess, QueryAccessType, QueryFilterType, QueryId, QueryLockType, QueryPlanet,
     StorageAccess,
 };
-pub use resource::{ResourceId, ResourcePlanet};
+pub use resource::{ResourceId, ResourcePlanet, ResourceTypeId};
 pub use state::{StateId, StatePlanet};
 pub use storage::{StorageModifyTransform, StoragePlanet, StorageTransform};

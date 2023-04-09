@@ -1,4 +1,7 @@
-use super::{ComponentGroupId, ComponentTypeId, Entity, EventId, QueryAccess, QueryId, ResourceId};
+use super::{
+    ComponentGroupId, ComponentTypeId, Entity, EventId, QueryAccess, QueryId, ResourceId,
+    ResourceTypeId,
+};
 pub use crate::data::TypeEntry;
 
 pub type Result<T> = std::result::Result<T, ECSError>;
@@ -32,11 +35,14 @@ pub enum ErrorType {
         id: EventId,
     },
     ResourcePlanetInsertType {
-        id: ResourceId,
+        tid: ResourceTypeId,
         ty: TypeEntry,
     },
     ResourcePlanetAccess {
         id: ResourceId,
+    },
+    ResourcePlanetTypeAccess {
+        tid: ResourceTypeId,
     },
     StorageBlocRemove {
         entity: Entity,

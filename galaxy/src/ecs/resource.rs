@@ -12,11 +12,22 @@ impl ResourceId {
     }
 }
 
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+pub struct ResourceTypeId(u64);
+
+impl ResourceTypeId {
+    pub fn from_hash(val: u64) -> Self {
+        ResourceTypeId(val)
+    }
+}
+
+type ResourceTypeItem = (TypeEntry, HashMap<ResourceId, RwLock<Option<TVal>>>);
+
 #[derive(Debug)]
 pub struct ResourcePlanet {
     //  Used when locking rwlocks to prevent abba problem.
     global_lock: Mutex<()>,
-    resources: HashMap<ResourceId, (TypeEntry, RwLock<Option<TVal>>)>,
+    resources: HashMap<ResourceTypeId, ResourceTypeItem>,
 }
 
 impl ResourcePlanet {
@@ -27,61 +38,73 @@ impl ResourcePlanet {
         }
     }
 
-    pub fn insert_type(&mut self, id: ResourceId, ty: TypeEntry) -> Result<()> {
-        if self.resources.contains_key(&id) {
-            Err(ecs_err!(
-                ErrorType::ResourcePlanetInsertType { id, ty: ty.clone() },
+    pub fn insert_id(&mut self, tid: ResourceTypeId, id: ResourceId, ty: TypeEntry) -> Result<()> {
+        self.resources
+            .entry(tid)
+            .or_insert_with(|| (ty.clone(), HashMap::new()));
+        let resource_ty = self.resources.get_mut(&tid).unwrap();
+        if resource_ty.1.contains_key(&id) {
+            return Err(ecs_err!(
+                ErrorType::ResourcePlanetInsertType { tid, ty },
                 self
-            ))?
+            ));
         }
-        self.resources.insert(id, (ty, RwLock::new(None)));
+        resource_ty.1.insert(id, RwLock::new(None));
         Ok(())
     }
 
-    pub fn get_type(&self, id: ResourceId) -> Option<&TypeEntry> {
+    pub fn get_type(&self, tid: ResourceTypeId) -> Option<&TypeEntry> {
         let _lock = self.global_lock.lock();
-        self.resources.get(&id).as_ref().map(|(ty, _)| ty)
+        self.resources.get(&tid).as_ref().map(|(ty, _)| ty)
     }
 
-    pub fn get_read_lock(&self, id: ResourceId) -> Result<&Option<TVal>> {
+    pub fn get_read_lock(&self, tid: ResourceTypeId, id: ResourceId) -> Result<&Option<TVal>> {
         let _lock = self.global_lock.lock();
         let lock = &self
             .resources
+            .get(&tid)
+            .ok_or(ecs_err!(ErrorType::ResourcePlanetTypeAccess { tid }, self))?
+            .1
             .get(&id)
-            .ok_or(ecs_err!(ErrorType::ResourcePlanetAccess { id }, self))?
-            .1;
+            .ok_or(ecs_err!(ErrorType::ResourcePlanetAccess { id }, self))?;
         std::mem::forget(lock.read());
         Ok(unsafe { &*lock.data_ptr() })
     }
 
-    pub fn get_read_unlock(&self, id: ResourceId) -> Result<()> {
+    pub fn get_read_unlock(&self, tid: ResourceTypeId, id: ResourceId) -> Result<()> {
         unsafe {
             self.resources
+                .get(&tid)
+                .ok_or(ecs_err!(ErrorType::ResourcePlanetTypeAccess { tid }, self))?
+                .1
                 .get(&id)
                 .ok_or(ecs_err!(ErrorType::ResourcePlanetAccess { id }, self))?
-                .1
                 .force_unlock_read()
         }
         Ok(())
     }
 
-    pub fn get_write_lock(&self, id: ResourceId) -> Result<&mut Option<TVal>> {
+    pub fn get_write_lock(&self, tid: ResourceTypeId, id: ResourceId) -> Result<&mut Option<TVal>> {
         let _lock = self.global_lock.lock();
         let lock = &self
             .resources
+            .get(&tid)
+            .ok_or(ecs_err!(ErrorType::ResourcePlanetTypeAccess { tid }, self))?
+            .1
             .get(&id)
-            .ok_or(ecs_err!(ErrorType::ResourcePlanetAccess { id }, self))?
-            .1;
+            .ok_or(ecs_err!(ErrorType::ResourcePlanetAccess { id }, self))?;
         std::mem::forget(lock.write());
         Ok(unsafe { &mut *lock.data_ptr() })
     }
 
-    pub fn get_write_unlock(&self, id: ResourceId) -> Result<()> {
+    pub fn get_write_unlock(&self, tid: ResourceTypeId, id: ResourceId) -> Result<()> {
         unsafe {
             self.resources
+                .get(&tid)
+                .ok_or(ecs_err!(ErrorType::ResourcePlanetTypeAccess { tid }, self))?
+                .1
                 .get(&id)
                 .ok_or(ecs_err!(ErrorType::ResourcePlanetAccess { id }, self))?
-                .1
                 .force_unlock_write()
         }
         Ok(())
