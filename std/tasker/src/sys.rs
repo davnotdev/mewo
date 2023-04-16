@@ -47,14 +47,6 @@ pub struct SystemConfig {
     pub of_set: u64,
 }
 
-//  TODO FIX: Remove this!
-impl std::fmt::Debug for SystemConfig {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&format!("os>{}<", self.of_set))?;
-        Ok(())
-    }
-}
-
 impl SystemConfig {
     fn new<S: 'static + SystemSet>(sys: Box<dyn Executable>, s: S) -> Self {
         SystemConfig {

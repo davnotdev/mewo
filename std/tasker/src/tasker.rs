@@ -1,9 +1,7 @@
 use super::*;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
-//  TODO FIX: Prevent circular dependencies.
-
-#[derive(Debug)]
+#[derive(Default)]
 pub struct Tasker {
     system_configs: Vec<SystemConfig>,
     set_configs: Vec<SystemSetConfig>,
@@ -11,10 +9,7 @@ pub struct Tasker {
 
 impl Tasker {
     pub fn new() -> Self {
-        Tasker {
-            system_configs: vec![],
-            set_configs: vec![],
-        }
+        Self::default()
     }
 
     pub fn systems<const N: usize>(&mut self, systems: [SystemConfig; N]) -> &mut Self {
@@ -48,8 +43,9 @@ impl Tasker {
 
         let state_system_schedules = all_states
             .into_iter()
-            .map(|state| (state, compile_schedule_for_state(&self, state)))
-            .collect();
+            .map(|state| Ok((state, compile_schedule_for_state(&self, state)?)))
+            .collect::<Result<_, ()>>()
+            .unwrap();
 
         TaskerRunner {
             tasker: self,
@@ -58,16 +54,9 @@ impl Tasker {
     }
 }
 
-impl Default for Tasker {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-#[derive(Debug)]
 pub struct TaskerRunner {
     tasker: Tasker,
-    state_system_schedules: HashMap<StateId, Vec<u64>>,
+    state_system_schedules: HashMap<StateId, Vec<SetId>>,
 }
 
 impl TaskerRunner {
@@ -119,68 +108,99 @@ impl TaskerRunner {
     }
 }
 
-fn execute_set(tasker: &Tasker, set: u64, galaxy: &Galaxy) -> Result<(), String> {
+fn execute_set(tasker: &Tasker, set: SetId, galaxy: &Galaxy) -> Result<(), String> {
     tasker
         .system_configs
         .iter()
-        .filter(|sys| sys.of_set == set)
+        .filter(|sys| sys.of_set == set.get_id())
         .try_for_each(|sys| sys.sys.run(galaxy))?;
     Ok(())
 }
 
-fn compile_schedule_for_state(tasker: &Tasker, state: StateId) -> Vec<u64> {
-    //  Create adjacency list.
-    //  TODO OPT: Memoize this.
-    let mut dependencies = HashMap::new();
-    tasker.set_configs.iter().for_each(|set| {
-        if !match &set.on_state {
-            OnSystemState::Always => true,
-            OnSystemState::On(states) => states.contains(&state),
-            _ => false,
-        } {
-            return;
+fn compile_schedule_for_state(tasker: &Tasker, state: StateId) -> Result<Vec<SetId>, ()> {
+    let mut result = vec![];
+
+    let mut set_config = tasker
+        .set_configs
+        .iter()
+        .cloned()
+        .map(|set| (set, false))
+        .collect::<Vec<_>>();
+
+    fn recurse(
+        idx: usize,
+        changing_config: &mut [(SystemSetConfig, bool)],
+        result: &mut Vec<SetId>,
+        circular_dep_check_list: &mut Vec<SetId>,
+    ) -> Result<Option<usize>, ()> {
+        let (set, added) = &mut changing_config[idx];
+        let set_id = set.set;
+
+        if circular_dep_check_list.contains(&set_id) {
+            Err(())?
         }
 
-        dependencies.entry(set.set).or_insert_with(Vec::new);
-        for &after_dependency in set.afters.iter() {
-            let deps = dependencies.get_mut(&set.set).unwrap();
-            deps.push(after_dependency);
+        if *added {
+            return Ok(None);
         }
-        for &before_dependency in set.befores.iter() {
-            dependencies
-                .entry(before_dependency)
-                .or_insert_with(Vec::new);
-            let deps = dependencies.get_mut(&before_dependency).unwrap();
-            deps.push(set.set);
-        }
-    });
 
-    //  Create execution schedule based on dependencies.
-    let mut schedule = vec![];
-    let mut visited = HashSet::new();
+        circular_dep_check_list.push(set_id);
+        *added = true;
 
-    fn recur(
-        this: u64,
-        dependencies: &HashMap<u64, Vec<u64>>,
-        visited: &mut HashSet<u64>,
-        schedule: &mut Vec<u64>,
-    ) {
-        visited.insert(this);
-
-        dependencies.get(&this).unwrap().iter().for_each(|&dep| {
-            if !visited.contains(&dep) {
-                recur(dep, dependencies, visited, schedule);
+        if let Some(dep) = &set.dependency {
+            match dep {
+                (set_dep, SetDependency::Before) => {
+                    let set_dep = *set_dep;
+                    let dep_idx = changing_config
+                        .iter()
+                        .position(|(s, _)| s.set == set_dep)
+                        .unwrap();
+                    let dep_position =
+                        recurse(dep_idx, changing_config, result, circular_dep_check_list)?
+                            .unwrap_or_else(|| result.iter().position(|s| *s == set_dep).unwrap());
+                    result.insert(dep_position, set_id);
+                    Ok(Some(dep_position))
+                }
+                (set_dep, SetDependency::After) => {
+                    let set_dep = *set_dep;
+                    let dep_idx = changing_config
+                        .iter()
+                        .position(|(s, _)| s.set == set_dep)
+                        .unwrap();
+                    let dep_position =
+                        recurse(dep_idx, changing_config, result, circular_dep_check_list)?
+                            .unwrap_or_else(|| result.iter().position(|s| *s == set_dep).unwrap());
+                    result.insert(dep_position + 1, set_id);
+                    Ok(Some(dep_position + 1))
+                }
             }
-        });
-
-        schedule.push(this);
+        } else {
+            result.push(set.set);
+            Ok(Some(result.len() - 1))
+        }
     }
 
-    dependencies.keys().for_each(|&dep| {
-        if !visited.contains(&dep) {
-            recur(dep, &dependencies, &mut visited, &mut schedule);
-        }
-    });
+    tasker
+        .set_configs
+        .iter()
+        .enumerate()
+        .try_for_each(|(idx, set)| {
+            let matches_state = match &set.on_state {
+                OnSystemState::Always => true,
+                OnSystemState::On(states) => states.contains(&state),
+                _ => false,
+            };
+            if !set_config[idx].1 && matches_state {
+                let mut circular_dep_check_list = vec![];
+                recurse(
+                    idx,
+                    &mut set_config,
+                    &mut result,
+                    &mut circular_dep_check_list,
+                )?;
+            }
+            Ok(())
+        })?;
 
-    schedule
+    Ok(result)
 }

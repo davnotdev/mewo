@@ -26,7 +26,7 @@ fn f<const C: char>(galaxy: &Galaxy) {
 }
 
 #[test]
-fn test_tasker_sets() {
+fn test_tasker_sets_0() {
     let mut galaxy = Galaxy::new();
     let mut tasker = Tasker::new();
 
@@ -39,8 +39,43 @@ fn test_tasker_sets() {
         ])
         .configure_sets([
             GameSet::B.config(),
-            GameSet::C.config().before(GameSet::B),
-            GameSet::A.config().after(GameSet::B).after(GameSet::C),
+            GameSet::C
+                .config()
+                .set_dependency(GameSet::B, SetDependency::Before),
+            GameSet::A
+                .config()
+                .set_dependency(GameSet::B, SetDependency::After),
+        ]);
+
+    galaxy.insert_resource(RANDOM_NUMBER, Value(String::new()));
+
+    let mut runner = tasker.runner();
+    runner.tick_systems(&mut galaxy);
+
+    let value = galaxy.get_resource::<Value, _>(RANDOM_NUMBER).unwrap();
+    assert_eq!(value.0, String::from("CBBA"));
+}
+
+#[test]
+fn test_tasker_sets_1() {
+    let mut galaxy = Galaxy::new();
+    let mut tasker = Tasker::new();
+
+    tasker
+        .systems([
+            system(f::<'A'>, GameSet::A),
+            system(f::<'B'>, GameSet::B),
+            system(f::<'B'>, GameSet::B),
+            system(f::<'C'>, GameSet::C),
+        ])
+        .configure_sets([
+            GameSet::A
+                .config()
+                .set_dependency(GameSet::B, SetDependency::After),
+            GameSet::C
+                .config()
+                .set_dependency(GameSet::B, SetDependency::Before),
+            GameSet::B.config(),
         ]);
 
     galaxy.insert_resource(RANDOM_NUMBER, Value(String::new()));

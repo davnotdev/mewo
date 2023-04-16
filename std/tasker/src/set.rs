@@ -3,7 +3,26 @@ use mewo_galaxy::data::hash_type_and_val;
 use super::*;
 use std::hash::Hash;
 
-//  TODO OPT: Replace u64 with set type.
+//  TODO CHK: Ok, I may be wrong, but what are the practical uses for multiple set dependencies?
+//  I feel like until there is a use, only one dependency should be allowed just to keep me sane.
+#[derive(Debug, Clone)]
+pub enum SetDependency {
+    Before,
+    After,
+}
+
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
+pub struct SetId(u64);
+
+impl SetId {
+    pub fn from_hash(val: u64) -> Self {
+        SetId(val)
+    }
+
+    pub fn get_id(&self) -> u64 {
+        self.0
+    }
+}
 
 pub trait SystemSet: 'static + Hash + Sized {
     fn hash_with_val(self) -> u64 {
@@ -11,35 +30,29 @@ pub trait SystemSet: 'static + Hash + Sized {
     }
 
     fn config(self) -> SystemSetConfig {
-        SystemSetConfig::new(self.hash_with_val())
+        SystemSetConfig::new(SetId::from_hash(self.hash_with_val()))
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct SystemSetConfig {
-    pub set: u64,
-    pub befores: Vec<u64>,
-    pub afters: Vec<u64>,
+    pub set: SetId,
+    pub dependency: Option<(SetId, SetDependency)>,
     pub on_state: OnSystemState,
 }
 
 impl SystemSetConfig {
-    fn new(set: u64) -> Self {
+    fn new(set: SetId) -> Self {
         Self {
             set,
-            befores: vec![],
-            afters: vec![],
+            dependency: None,
             on_state: OnSystemState::default(),
         }
     }
 
-    pub fn before<S: 'static + SystemSet>(mut self, set: S) -> Self {
-        self.befores.push(set.hash_with_val());
-        self
-    }
-
-    pub fn after<S: 'static + SystemSet>(mut self, set: S) -> Self {
-        self.afters.push(set.hash_with_val());
+    pub fn set_dependency<S: 'static + SystemSet>(mut self, set: S, dep: SetDependency) -> Self {
+        let set = SetId::from_hash(set.hash_with_val());
+        self.dependency = Some((set, dep));
         self
     }
 

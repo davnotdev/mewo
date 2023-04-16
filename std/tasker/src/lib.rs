@@ -9,7 +9,7 @@ mod tasker;
 #[cfg(test)]
 mod test;
 
-use set::SystemSetConfig;
+use set::{SetDependency, SetId, SystemSetConfig};
 use sys::SystemConfig;
 
 pub use set::SystemSet;
