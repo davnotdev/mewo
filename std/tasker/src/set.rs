@@ -50,7 +50,7 @@ impl SystemSetConfig {
         }
     }
 
-    pub fn set_dependency<S: 'static + SystemSet>(mut self, set: S, dep: SetDependency) -> Self {
+    pub fn set_dependency<S: 'static + SystemSet>(mut self, dep: SetDependency, set: S) -> Self {
         let set = SetId::from_hash(set.hash_with_val());
         self.dependency = Some((set, dep));
         self

@@ -41,10 +41,10 @@ fn test_tasker_sets_0() {
             GameSet::B.config(),
             GameSet::C
                 .config()
-                .set_dependency(GameSet::B, SetDependency::Before),
+                .set_dependency(SetDependency::Before, GameSet::B),
             GameSet::A
                 .config()
-                .set_dependency(GameSet::B, SetDependency::After),
+                .set_dependency(SetDependency::After, GameSet::B),
         ]);
 
     galaxy.insert_resource(RANDOM_NUMBER, Value(String::new()));
@@ -71,10 +71,10 @@ fn test_tasker_sets_1() {
         .configure_sets([
             GameSet::A
                 .config()
-                .set_dependency(GameSet::B, SetDependency::After),
+                .set_dependency(SetDependency::After, GameSet::B),
             GameSet::C
                 .config()
-                .set_dependency(GameSet::B, SetDependency::Before),
+                .set_dependency(SetDependency::Before, GameSet::B),
             GameSet::B.config(),
         ]);
 
