@@ -15,7 +15,12 @@ Rather, it is a fast, minimal, multithread-able Entity Component System.
 > Interested in how it works?
 > Here's a [really boring walkthrough](https://davnotdev.github.io/blog/coolprojects/mewo_explained_0/).
 
+## Getting Started
+
+See the [docs](https://docs.rs/mewo)
+for a guide to pretty much everything Mewo has to offer.
+
 ## Examples
 
-[Terminal Flappy Bird](./examples/termbird/)
+[Terminal Flappy Bird](https://github.com/davnotdev/mewo/tree/main/examples/termbird)
 
