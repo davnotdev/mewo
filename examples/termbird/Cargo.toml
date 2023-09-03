@@ -6,7 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-mewo_ecs = { version = "*", path = "../../mewo_ecs/" }
-mewo_ecs_derive = { version = "*", path = "../../mewo_ecs_derive/" }
+mewo = { version = "*", path = "../../mewo/" }
 termbox-sys = { version = "0.2", git = "https://github.com/davnotdev/termbox-sys" }
 rand = "0.8.5" 

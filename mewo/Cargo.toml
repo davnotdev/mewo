@@ -1,0 +1,14 @@
+[package]
+name = "mewo"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+default = ["derive"]
+derive = ["dep:mewo_ecs_derive"]
+
+[dependencies]
+mewo_ecs = { version = "*", path = "../mewo_ecs/" }
+mewo_ecs_derive = { version = "*", path = "../mewo_ecs_derive/", optional = true }

@@ -1,5 +1,4 @@
-use mewo_ecs::*;
-use mewo_ecs_derive::*;
+use mewo::*;
 use std::{thread, time::Duration};
 
 mod pipe;
