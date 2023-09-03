@@ -89,7 +89,7 @@ fn game_init(g: &Galaxy) {
 fn game_quit(g: &Galaxy) {
     for ev in g.get_events::<TermKeyEvent>() {
         if ev.unicode == 'q' as u32 {
-            panic!()
+            g.set_exit();
         }
     }
 }

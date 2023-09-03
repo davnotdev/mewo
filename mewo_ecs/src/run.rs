@@ -1,10 +1,12 @@
 use super::*;
 use std::thread;
 
-pub fn run_single(mut galaxy: Galaxy, systems: &[fn(&Galaxy)]) -> ! {
+pub fn run_single(mut galaxy: Galaxy, systems: &[fn(&Galaxy)]) {
     loop {
         systems.iter().for_each(|sys| sys(&galaxy));
-        galaxy.update();
+        if galaxy.update().is_none() {
+            return;
+        }
     }
 }
 
@@ -24,7 +26,9 @@ pub fn run_spawn(
         }
         {
             let mut galaxy = galaxy.write();
-            galaxy.update();
+            if galaxy.update().is_none() {
+                return;
+            }
         }
 
         post_update(&galaxy);
@@ -49,7 +53,9 @@ pub fn run_spawn_overlapped(
         }
         {
             let mut galaxy = galaxy.write();
-            galaxy.update();
+            if galaxy.update().is_none() {
+                return;
+            }
         }
 
         post_update(&galaxy);

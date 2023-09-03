@@ -23,7 +23,7 @@ pub fn game_player_border(g: &Galaxy) {
     for (e, player) in g.query::<&Player>().eiter() {
         if player.1 >= bounds.1 || player.1 <= 0f32 {
             g.remove_entity(e);
-            panic!()
+            g.set_exit();
         }
     }
 }

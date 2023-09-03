@@ -63,7 +63,7 @@ pub fn game_pipe_border(g: &Galaxy) {
                 && player_pos.1 <= pipe.1 .1 + pipe.1 .3 as f32)
         {
             g.remove_entity(player.get_entity());
-            panic!();
+            g.set_exit();
         }
     }
     // }

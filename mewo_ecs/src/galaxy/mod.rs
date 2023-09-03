@@ -9,6 +9,7 @@ use super::{
     },
 };
 use parking_lot::RwLock;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 mod access;
 mod component;
@@ -41,6 +42,8 @@ pub struct Galaxy {
 
     ev_modify: ThreadLocal<EventModify>,
     st_transforms: ThreadLocal<Vec<StorageTransform>>,
+
+    exit: AtomicBool,
 }
 
 impl Galaxy {
@@ -61,10 +64,20 @@ impl Galaxy {
 
             ev_modify: ThreadLocal::new(),
             st_transforms: ThreadLocal::new(),
+
+            exit: AtomicBool::new(false),
         }
     }
 
-    pub fn update(&mut self) {
+    pub fn set_exit(&self) {
+        self.exit.store(true, Ordering::SeqCst);
+    }
+
+    pub fn update(&mut self) -> Option<()> {
+        if self.exit.load(Ordering::SeqCst) {
+            None?
+        }
+
         let mut evp = self.evp.write();
 
         let mut ep = self.ep.write();
@@ -93,6 +106,8 @@ impl Galaxy {
         sp.update();
 
         self.stp.update();
+
+        Some(())
     }
 
     fn get_event_modify(&self) -> ThreadLocalGuard<EventModify> {
