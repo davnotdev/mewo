@@ -1,8 +1,5 @@
-use super::prelude::*;
-use std::{
-    sync::{Arc, RwLock},
-    thread,
-};
+use super::*;
+use std::thread;
 
 pub fn run_single(mut galaxy: Galaxy, systems: &[fn(&Galaxy)]) -> ! {
     loop {
@@ -22,11 +19,11 @@ pub fn run_spawn(
         pre_update(&galaxy);
 
         {
-            let galaxy = galaxy.read().unwrap();
+            let galaxy = galaxy.read();
             systems.iter().for_each(|sys| sys(&galaxy));
         }
         {
-            let mut galaxy = galaxy.write().unwrap();
+            let mut galaxy = galaxy.write();
             galaxy.update();
         }
 
@@ -46,12 +43,12 @@ pub fn run_spawn_overlapped(
 
         {
             systems.iter().for_each(|sys| {
-                let galaxy = galaxy.read().unwrap();
+                let galaxy = galaxy.read();
                 sys(&galaxy)
             });
         }
         {
-            let mut galaxy = galaxy.write().unwrap();
+            let mut galaxy = galaxy.write();
             galaxy.update();
         }
 

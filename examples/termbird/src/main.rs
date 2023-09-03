@@ -1,10 +1,6 @@
-use mewo_galaxy::{prelude::*, run::run_spawn_overlapped};
-use mewo_galaxy_derive::*;
-use std::{
-    sync::{Arc, RwLock},
-    thread,
-    time::Duration,
-};
+use mewo_ecs::*;
+use mewo_ecs_derive::*;
+use std::{thread, time::Duration};
 
 mod pipe;
 mod player;
@@ -103,7 +99,7 @@ fn main() {
     let galaxy = Arc::new(RwLock::new(Galaxy::new()));
 
     {
-        let mut galaxy = galaxy.write().unwrap();
+        let mut galaxy = galaxy.write();
 
         term_init(&galaxy);
         game_init(&galaxy);
