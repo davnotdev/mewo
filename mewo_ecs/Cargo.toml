@@ -1,6 +1,6 @@
 [package]
 name = "mewo_ecs"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "mewo_ecs - Simple, Lightweight ECS"
 repository = "https://github.com/davnotdev/mewo"

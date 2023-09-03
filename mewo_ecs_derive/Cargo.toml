@@ -1,6 +1,6 @@
 [package]
 name = "mewo_ecs_derive"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "mewo_ecs_derive - mewo_ecs' derive macros"
 repository = "https://github.com/davnotdev/mewo"

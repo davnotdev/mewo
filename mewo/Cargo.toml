@@ -1,6 +1,6 @@
 [package]
 name = "mewo"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 description = "mewo - Simple, Lightweight ECS"
 repository = "https://github.com/davnotdev/mewo"
@@ -15,5 +15,5 @@ default = ["derive"]
 derive = ["dep:mewo_ecs_derive"]
 
 [dependencies]
-mewo_ecs = { version = "*", path = "../mewo_ecs/" }
-mewo_ecs_derive = { version = "*", path = "../mewo_ecs_derive/", optional = true }
+mewo_ecs = { version = "0.1.1", path = "../mewo_ecs/" }
+mewo_ecs_derive = { version = "0.1.1", path = "../mewo_ecs_derive/", optional = true }
