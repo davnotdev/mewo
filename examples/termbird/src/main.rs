@@ -1,7 +1,10 @@
-use mewo_common::prelude::*;
-use mewo_galaxy::prelude::*;
+use mewo_galaxy::{prelude::*, run::run_spawn_overlapped};
 use mewo_galaxy_derive::*;
-use std::time::Duration;
+use std::{
+    sync::{Arc, RwLock},
+    thread,
+    time::Duration,
+};
 
 mod pipe;
 mod player;
@@ -57,9 +60,6 @@ impl Drop for TermContext {
 #[derive(Clone, SingleResource)]
 struct GameBounds(f32, f32);
 
-#[derive(SingleResource)]
-struct PipeSpawnTimer(Timer);
-
 #[derive(Event)]
 struct TermKeyEvent {
     pub key: u16,
@@ -87,10 +87,6 @@ fn game_init(g: &Galaxy) {
             .get_entity();
         g.insert_resource(PlayerEntity::single_resource(), PlayerEntity(player));
 
-        g.insert_resource(
-            PipeSpawnTimer::single_resource(),
-            PipeSpawnTimer(Timer::new(Duration::from_millis(1300))),
-        );
         spawn_pipe(g).unwrap();
     }
 }
@@ -104,29 +100,41 @@ fn game_quit(g: &Galaxy) {
 }
 
 fn main() {
-    let mut galaxy = Galaxy::new();
+    let galaxy = Arc::new(RwLock::new(Galaxy::new()));
 
-    time_init(&galaxy);
-    term_init(&galaxy);
-    game_init(&galaxy);
+    {
+        let mut galaxy = galaxy.write().unwrap();
 
-    galaxy.update();
-
-    let systems: Vec<fn(&Galaxy)> = vec![
-        game_quit,
-        term_input,
-        term_render,
-        game_player_jump,
-        game_player_border,
-        game_player_gravity,
-        game_pipe_move,
-        game_pipe_despawn,
-        game_pipe_spawn_loop,
-        game_pipe_border,
-    ];
-    loop {
-        systems.iter().for_each(|sys| sys(&galaxy));
+        term_init(&galaxy);
+        game_init(&galaxy);
 
         galaxy.update();
     }
+
+    let systems_join = run_spawn_overlapped(
+        Arc::clone(&galaxy),
+        &[
+            game_quit,
+            term_input,
+            term_render,
+            game_player_jump,
+            game_player_border,
+            game_player_gravity,
+            game_pipe_move,
+            game_pipe_despawn,
+            game_pipe_border,
+        ],
+        |_| (),
+        |_| (),
+    );
+
+    let systems_1000ms_join = run_spawn_overlapped(
+        Arc::clone(&galaxy),
+        &[game_pipe_spawn_loop],
+        |_| thread::sleep(Duration::from_millis(1300)),
+        |_| (),
+    );
+
+    systems_join.join().unwrap();
+    systems_1000ms_join.join().unwrap();
 }

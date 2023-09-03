@@ -2,11 +2,5 @@
 members = [
     "galaxy",
     "galaxy_derive",
-    "std/common",
-    # "std/asset",
-    "std/window",
-    "std/tasker",
     "examples/termbird/",
-    "examples/winbox/",
 ]
-exclude = ["std/asset"]
