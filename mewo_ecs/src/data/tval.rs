@@ -4,7 +4,6 @@ use super::drop::ValueDrop;
 
 #[derive(Debug)]
 pub struct TVal {
-    size: usize,
     val: Vec<u8>,
     drop: ValueDrop,
 }
@@ -12,7 +11,6 @@ pub struct TVal {
 impl TVal {
     pub unsafe fn new(size: usize, val: *const u8, drop: ValueDrop) -> Self {
         TVal {
-            size,
             val: {
                 let mut v = Vec::new();
                 if size == 0 {
@@ -35,10 +33,6 @@ impl TVal {
 
     pub fn get(&self) -> *const u8 {
         self.val.as_ptr()
-    }
-
-    pub fn get_size(&self) -> usize {
-        self.size
     }
 
     pub fn take(mut self) {

@@ -5,7 +5,7 @@ mod log;
 pub mod run;
 
 pub use data::ValueDuplicate;
-pub use ecs::{Entity, EventModify, StateId, StorageModifyTransform, StorageTransform};
+pub use ecs::{Entity, StateId};
 pub use galaxy::{
     CheapComponent, Component, Event, Galaxy, GenericComponent, Resource, ResourceReadGuard,
     ResourceWriteGuard, UniqueComponent,
