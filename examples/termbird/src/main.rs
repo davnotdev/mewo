@@ -106,7 +106,7 @@ fn main() {
         galaxy.update();
     }
 
-    let systems_join = run_spawn_overlapped(
+    let systems_join = run_spawn(
         Arc::clone(&galaxy),
         &[
             game_quit,
@@ -123,7 +123,7 @@ fn main() {
         |_| (),
     );
 
-    let systems_1000ms_join = run_spawn_overlapped(
+    let systems_1000ms_join = run_spawn(
         Arc::clone(&galaxy),
         &[game_pipe_spawn_loop],
         |_| thread::sleep(Duration::from_millis(1300)),

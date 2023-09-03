@@ -24,6 +24,7 @@ mod test;
 
 pub use access::{ComponentAccessOptional, ComponentAccessesNormal, ComponentAccessesOptional};
 pub use component::{CheapComponent, Component, GenericComponent, UniqueComponent};
+pub use entity::EntityGetter;
 pub use event::Event;
 pub use resource::{Resource, ResourceReadGuard, ResourceWriteGuard};
 
