@@ -4,7 +4,6 @@ mod error;
 mod event;
 mod query;
 mod resource;
-mod state;
 mod storage;
 
 pub use component::{
@@ -17,5 +16,4 @@ pub use query::{
     StorageAccess,
 };
 pub use resource::{ResourceId, ResourcePlanet, ResourceTypeId};
-pub use state::{StateId, StatePlanet};
 pub use storage::{StorageModifyTransform, StoragePlanet, StorageTransform};

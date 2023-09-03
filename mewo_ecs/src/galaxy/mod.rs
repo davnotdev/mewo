@@ -4,8 +4,7 @@ use super::{
         ComponentGroupId, ComponentGroupPlanet, ComponentTypeId, ComponentTypePlanet, Entity,
         EntityPlanet, EventId, EventModify, EventPlanet, QueryAccess, QueryAccessType,
         QueryFilterType, QueryId, QueryLockType, QueryPlanet, ResourceId, ResourcePlanet,
-        ResourceTypeId, StateId, StatePlanet, StorageModifyTransform, StoragePlanet,
-        StorageTransform,
+        ResourceTypeId, StorageModifyTransform, StoragePlanet, StorageTransform,
     },
 };
 use parking_lot::RwLock;
@@ -17,7 +16,6 @@ mod entity;
 mod event;
 mod query;
 mod resource;
-mod state;
 
 #[cfg(test)]
 mod test;
@@ -39,7 +37,6 @@ pub struct Galaxy {
     evp: RwLock<EventPlanet>,
     qp: RwLock<QueryPlanet>,
     sp: RwLock<StoragePlanet>,
-    stp: StatePlanet,
 
     ev_modify: ThreadLocal<EventModify>,
     st_transforms: ThreadLocal<Vec<StorageTransform>>,
@@ -60,8 +57,6 @@ impl Galaxy {
             qp: RwLock::new(QueryPlanet::new()),
 
             ep: RwLock::new(EntityPlanet::new()),
-
-            stp: StatePlanet::new(),
 
             ev_modify: ThreadLocal::new(),
             st_transforms: ThreadLocal::new(),
@@ -105,8 +100,6 @@ impl Galaxy {
         }
 
         sp.update();
-
-        self.stp.update();
 
         Some(())
     }
