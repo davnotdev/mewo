@@ -1,35 +1,16 @@
-# Mewo Toolkit
+# Mewo ECS
 
-Yet Another Rust ECS Game Engine.
-Not ready for anything yet, but hopefully, it'll be usable soon!
+## What is Mewo?
+
+I've always wanted to create my own game engine, and this is the manifestation of those dreams.
+Mewo isn't a full game engine though.
+Rather, it is a fast, minimal, multithread-able Entity Component System.
+(`mewo_ecs` has exactly one dependency!) 
 
 > Interested in how it works?
-> [Read about it here](https://davnotdev.github.io/blog/coolprojects/mewo_explained_0/).
+> Here's a [really boring walkthrough](https://davnotdev.github.io/blog/coolprojects/mewo_explained_0/).
 
-## Development Status
+## Examples
 
-Crates are either
-Usable (K),
-borked (B),
-incomplete (I),
-untested (T),
-or excluded due to broken dependencies (D).
+[Terminal Flappy Bird](./examples/termbird/)
 
-> By "Usable", I mean that the crate has enough functionality to have a purpose
-/ use.
-
-| Create               | Functionality | Clippy |
-| -------------------- | ------------- | ------ |
-| `mewo_galaxy`        | K             | K      |
-| `mewo_galaxy_derive` | K             | K      |
-| `mewo_asset`         | B             | B      |
-| `mewo_common`        | K             | K      |
-| `mewo_tasker`        | K             | K      |
-| `mewo_window`        | K             | K      |
-| `termbird`           | K             | K      |
-| `winbox`             | K             | K      |
-
-### Additional Notes
-
-- `mewo_gpu` has been moved [here](https://github.com/davnotdev/mepeyew).
-- `mewo_asset` has not been tested and broke with the addition of plural resources.
