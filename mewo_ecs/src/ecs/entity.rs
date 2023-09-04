@@ -64,4 +64,13 @@ impl EntityPlanet {
             .map(|&(gen, ex)| gen == entity.generation() && ex)
             .unwrap_or(false)
     }
+
+    pub fn get_entities(&self) -> Vec<Entity> {
+        self.entities
+            .iter()
+            .copied()
+            .enumerate()
+            .filter_map(|(id, (generation, exists))| exists.then_some(Entity(id, generation)))
+            .collect()
+    }
 }

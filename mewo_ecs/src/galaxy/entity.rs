@@ -83,7 +83,7 @@ impl<'gal, T> Drop for EntityGetter<'gal, T> {
     fn drop(&mut self) {
         self.galaxy
             .get_storage_transforms()
-            .push(std::mem::replace(&mut self.trans, None).unwrap());
+            .push(self.trans.take().unwrap());
     }
 }
 
@@ -190,5 +190,9 @@ impl Galaxy {
     pub fn remove_entity(&self, e: Entity) {
         self.get_storage_transforms()
             .push(StorageTransform::Remove(e));
+    }
+
+    pub fn get_entities(&self) -> Vec<Entity> {
+        self.ep.read().get_entities()
     }
 }

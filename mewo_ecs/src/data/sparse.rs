@@ -44,7 +44,7 @@ impl<K, V> SparseSet<K, V> {
         if idx >= self.sparse.len() {
             None
         } else {
-            let dense_idx = std::mem::replace(self.sparse.get_mut(idx).unwrap(), None)?;
+            let dense_idx = self.sparse.get_mut(idx).unwrap().take()?;
             if self.dense.len() != 1 {
                 let key = self.dense.last().unwrap().0;
                 *self.sparse.get_mut(idx).unwrap() = None;
