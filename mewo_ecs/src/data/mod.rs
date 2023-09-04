@@ -1,5 +1,6 @@
 mod drop;
 mod dvec;
+mod preserve;
 mod sparse;
 mod threadlocal;
 mod tval;
@@ -7,6 +8,7 @@ mod typeentry;
 
 pub use drop::{CloneFunction, DropFunction, ValueDrop, ValueDuplicate};
 pub use dvec::DVec;
+pub use preserve::{Preserve, PreserveInstance};
 pub use sparse::SparseSet;
 pub use threadlocal::{ThreadLocal, ThreadLocalGuard};
 pub use tval::TVal;

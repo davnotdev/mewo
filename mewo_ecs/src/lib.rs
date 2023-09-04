@@ -4,7 +4,7 @@ mod galaxy;
 mod log;
 pub mod run;
 
-pub use data::ValueDuplicate;
+pub use data::{Preserve, PreserveInstance, ValueDuplicate};
 pub use ecs::Entity;
 pub use galaxy::{
     CheapComponent, Component, EntityGetter, Event, Galaxy, GenericComponent, Resource,
