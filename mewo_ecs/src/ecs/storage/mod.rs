@@ -19,7 +19,7 @@ use row::StorageRow;
 pub struct StoragePlanet {
     null_group: ComponentGroupId,
     storages: SparseSet<ComponentGroupId, StorageBloc>,
-    entities: SparseSet<Entity, ComponentGroupId>,
+    entities: HashMap<Entity, ComponentGroupId>,
 }
 
 impl StoragePlanet {
@@ -36,18 +36,18 @@ impl StoragePlanet {
         Ok(StoragePlanet {
             null_group,
             storages,
-            entities: SparseSet::new(),
+            entities: HashMap::new(),
         })
     }
 
     fn insert_entity(&mut self, entity: Entity) -> Result<()> {
-        if self.entities.get(entity.id()).is_some() {
+        if self.entities.get(&entity).is_some() {
             Err(ecs_err!(
                 ErrorType::StoragePlanetInsertEntity { entity },
                 self
             ))
         } else {
-            self.entities.insert(entity.id(), self.null_group);
+            self.entities.insert(entity, self.null_group);
             self.storages
                 .get_mut(self.null_group.id())
                 .unwrap()
@@ -57,12 +57,12 @@ impl StoragePlanet {
     }
 
     fn remove_entity(&mut self, entity: Entity) -> Result<()> {
-        if let Some(&gid) = self.entities.get(entity.id()) {
+        if let Some(&gid) = self.entities.get(&entity) {
             self.storages
                 .get_mut(gid.id())
                 .unwrap()
                 .remove_entity(entity)?;
-            self.entities.remove(entity.id());
+            self.entities.remove(&entity);
             Ok(())
         } else {
             Err(ecs_err!(
@@ -80,7 +80,7 @@ impl StoragePlanet {
         entity: Entity,
         modify: StorageModifyTransform,
     ) -> Result<()> {
-        let old_gid = *self.entities.get(entity.id()).ok_or(ecs_err!(
+        let old_gid = *self.entities.get(&entity).ok_or(ecs_err!(
             ErrorType::StoragePlanetTransformEntity { entity },
             (&self)
         ))?;
@@ -125,7 +125,7 @@ impl StoragePlanet {
         res?;
         //  </Danger Zone>
 
-        *self.entities.get_mut(entity.id()).unwrap() = new_gid;
+        *self.entities.get_mut(&entity).unwrap() = new_gid;
 
         for (_, val) in modify.inserts {
             val.take();
@@ -233,7 +233,7 @@ impl StoragePlanet {
     }
 
     pub fn get_entity_group(&self, entity: Entity) -> Option<ComponentGroupId> {
-        self.entities.get(entity.id()).copied()
+        self.entities.get(&entity).copied()
     }
 
     pub fn get_entity_idx(&self, group: ComponentGroupId, entity: Entity) -> Option<usize> {
