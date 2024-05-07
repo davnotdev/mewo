@@ -9,7 +9,7 @@
 
 I've always wanted to create my own game engine, and this is the manifestation of those dreams.
 Mewo isn't a full game engine though.
-Rather, it is a fast, minimal, multithread-able Entity Component System.
+Rather, it is a sleek, multithread-able Entity Component System.
 (`mewo_ecs` has exactly one dependency!) 
 
 <!--
